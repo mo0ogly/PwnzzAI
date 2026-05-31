@@ -1,0 +1,78 @@
+# JuiceLab Coach pour PwnzzAI — stack AUTONOME.
+#
+# Ne depend d'AUCUN repo PwnzzAI local : PwnzzAI est clone au build a un
+# commit pinne (coach/Dockerfile.pwnzzai), exactement comme JuiceLab clone
+# Juice Shop. C'est ce fichier qui est publie dans le repo coach propre,
+# renomme docker-compose.yml a la racine.
+#
+#   docker compose up -d --build
+#   -> eleve : http://localhost:8095   (PwnzzAI brut : http://localhost:8090)
+#
+# Cohorte : renseigner JUICELAB_* dans .env (voir .env.example).
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - pwnzzai-network
+    restart: unless-stopped
+    environment:
+      - OLLAMA_KEEP_ALIVE=-1
+
+  pwnzzai-app:
+    build:
+      context: .
+      dockerfile: coach/Dockerfile.pwnzzai
+      args:
+        PWNZZAI_COMMIT: ${PWNZZAI_COMMIT:-676b9cf7e924e8a3bd9711a507887acebd2d8c52}
+    image: pwnzzai:pinned
+    container_name: pwnzzai-shop
+    ports:
+      - "8090:8080"
+    depends_on:
+      - ollama
+    networks:
+      - pwnzzai-network
+    restart: unless-stopped
+    environment:
+      - FLASK_APP=main.py
+      - FLASK_ENV=development
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:1b}
+
+  pwnzzai-coach:
+    build:
+      context: ./coach
+      dockerfile: Dockerfile
+    image: pwnzzai-coach:local
+    container_name: pwnzzai-coach
+    ports:
+      - "8095:8090"
+    depends_on:
+      - pwnzzai-app
+      - ollama
+    networks:
+      - pwnzzai-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - COACH_PORT=8090
+      - PWNZZAI_UPSTREAM=http://pwnzzai-app:8080
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:1b}
+      - COACH_JUDGE_MODEL=${COACH_JUDGE_MODEL:-llama3.2:3b}
+      - JUICELAB_DASHBOARD_URL=${JUICELAB_DASHBOARD_URL:-}
+      - JUICELAB_COHORT_ID=${JUICELAB_COHORT_ID:-PWNZZAI-DEFAULT}
+      - JUICELAB_INSTANCE_LABEL=${JUICELAB_INSTANCE_LABEL:-pwnzzai-default}
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+
+networks:
+  pwnzzai-network:
+    driver: bridge

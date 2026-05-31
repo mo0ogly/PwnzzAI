@@ -1,0 +1,257 @@
+"""JuiceLab Coach — transparent reverse proxy in front of OWASP PwnzzAI.
+
+Design goal: leave the OWASP product 100% untouched. This sidecar sits in
+front of PwnzzAI, forwards every request unchanged, and only:
+
+  1. injects a <script>/<link> pair into HTML responses so the coach
+     sidebar loads in the student's browser;
+  2. serves its own API under /__coach/*:
+       GET  /__coach/config   cohort + labs catalogue for the sidebar
+       POST /__coach/hint     adaptive hint via Ollama          (reframe 4)
+       POST /__coach/judge    LLM-as-judge of the transcript    (reframe 1)
+       POST /__coach/event    forward an event to the dashboard (cohort link)
+       GET  /__coach/health   coach + ollama + dashboard status
+       GET  /__coach/static/* sidebar assets (coach.js, coach.css)
+
+Transcript capture (reframe 3) happens in the browser (coach.js monkey-
+patches fetch), so the proxy needs no per-lab knowledge.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Any
+
+import httpx
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+
+import dashboard_client as dash
+import llm_judge
+
+logging.basicConfig(
+    level=os.environ.get("COACH_LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s | %(message)s",
+)
+LOGGER = logging.getLogger("coach.proxy")
+
+UPSTREAM = os.environ.get("PWNZZAI_UPSTREAM", "http://pwnzzai-app:8080").rstrip("/")
+HERE = Path(__file__).resolve().parent
+STATIC_DIR = HERE / "static"
+
+with (HERE / "labs.json").open(encoding="utf-8") as fh:
+    LABS: list[dict[str, Any]] = json.load(fh)["labs"]
+# longest 'match' first so /data-poisoning/catering-rag beats /data-poisoning
+LABS.sort(key=lambda lab_: len(lab_["match"]), reverse=True)
+LABS_BY_KEY = {lab_["key"]: lab_ for lab_ in LABS}
+
+# Headers that must not be copied verbatim when proxying.
+HOP_BY_HOP = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade", "content-encoding",
+    "content-length",
+}
+
+INJECT_SNIPPET = (
+    '<link rel="stylesheet" href="/__coach/static/coach.css">'
+    '<script>window.__COACH_BASE__="/__coach";</script>'
+    '<script src="/__coach/static/coach.js" defer></script>'
+)
+
+app = FastAPI(title="JuiceLab Coach for PwnzzAI", docs_url=None, redoc_url=None)
+
+
+# --------------------------------------------------------------------------
+# Coach API
+# --------------------------------------------------------------------------
+
+@app.get("/__coach/health")
+async def coach_health() -> JSONResponse:
+    return JSONResponse(
+        {
+            "ok": True,
+            "ollama": await llm_judge.healthcheck(),
+            "dashboard_configured": dash.is_configured(),
+        }
+    )
+
+
+@app.get("/__coach/config")
+async def coach_config() -> JSONResponse:
+    """Everything the sidebar needs to bootstrap. No secrets exposed."""
+    public_labs = [
+        {
+            "key": lab_["key"],
+            "match": lab_["match"],
+            "owasp": lab_.get("owasp", ""),
+            "name_fr": lab_.get("name_fr", ""),
+            "name_en": lab_.get("name_en", ""),
+            "goal_fr": lab_.get("goal_fr", ""),
+            "goal_en": lab_.get("goal_en", ""),
+        }
+        for lab_ in LABS
+    ]
+    return JSONResponse(
+        {
+            "cohort_id": dash.COHORT_ID,
+            "instance_label": dash.INSTANCE_LABEL,
+            "dashboard_configured": dash.is_configured(),
+            "labs": public_labs,
+        }
+    )
+
+
+@app.post("/__coach/hint")
+async def coach_hint(req: Request) -> JSONResponse:
+    body = await _json_body(req)
+    lab = LABS_BY_KEY.get(str(body.get("lab_key", "")))
+    if lab is None:
+        return JSONResponse({"error": "unknown lab_key"}, status_code=400)
+    try:
+        result = await llm_judge.hint(
+            lab=lab,
+            transcript=body.get("transcript") or [],
+            level=body.get("level", 1),
+            lang=body.get("lang", "fr"),
+        )
+        return JSONResponse(result)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("hint failed: %s", exc)
+        return JSONResponse({"error": "hint engine unavailable"}, status_code=503)
+
+
+@app.post("/__coach/judge")
+async def coach_judge(req: Request) -> JSONResponse:
+    body = await _json_body(req)
+    lab = LABS_BY_KEY.get(str(body.get("lab_key", "")))
+    if lab is None:
+        return JSONResponse({"error": "unknown lab_key"}, status_code=400)
+    transcript = body.get("transcript") or []
+    if not transcript:
+        return JSONResponse(
+            {"error": "empty transcript", "success": False,
+             "reason": "Aucun echange a evaluer. Discute d'abord avec l'assistant."},
+            status_code=400,
+        )
+    try:
+        result = await llm_judge.judge(lab=lab, transcript=transcript)
+        return JSONResponse(result)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("judge failed: %s", exc)
+        return JSONResponse({"error": "judge unavailable"}, status_code=503)
+
+
+@app.post("/__coach/event")
+async def coach_event(req: Request) -> JSONResponse:
+    body = await _json_body(req)
+    result = await dash.forward_event(
+        student_token=str(body.get("student_token", "")).strip(),
+        event_type=str(body.get("event_type", "")).strip(),
+        challenge_key=body.get("challenge_key"),
+        data=body.get("data") if isinstance(body.get("data"), dict) else {},
+        client_timestamp=body.get("client_timestamp"),
+    )
+    status = 201 if result.get("ok") else 202
+    return JSONResponse(result, status_code=status)
+
+
+@app.get("/__coach/static/{filename}")
+async def coach_static(filename: str) -> Response:
+    safe = Path(filename).name  # strip any path traversal
+    target = STATIC_DIR / safe
+    if not target.is_file():
+        return Response(status_code=404)
+    media = "application/javascript" if safe.endswith(".js") else (
+        "text/css" if safe.endswith(".css") else "application/octet-stream"
+    )
+    return FileResponse(target, media_type=media)
+
+
+async def _json_body(req: Request) -> dict[str, Any]:
+    try:
+        data = await req.json()
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+# --------------------------------------------------------------------------
+# Transparent reverse proxy (everything that is not /__coach/*)
+# --------------------------------------------------------------------------
+
+@app.api_route(
+    "/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+)
+async def proxy(path: str, request: Request) -> Response:
+    url = f"{UPSTREAM}/{path}"
+    # Force identity encoding upstream so HTML bodies arrive uncompressed
+    # and are cheap to inject into.
+    fwd_headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in HOP_BY_HOP and k.lower() != "host"
+    }
+    fwd_headers["accept-encoding"] = "identity"
+    body = await request.body()
+
+    client = httpx.AsyncClient(timeout=None, follow_redirects=False)
+    try:
+        upstream_req = client.build_request(
+            request.method, url, headers=fwd_headers,
+            params=request.query_params, content=body,
+        )
+        upstream_resp = await client.send(upstream_req, stream=True)
+    except httpx.ConnectError:
+        await client.aclose()
+        return JSONResponse(
+            {"error": "PwnzzAI upstream unreachable", "upstream": UPSTREAM},
+            status_code=502,
+        )
+
+    content_type = upstream_resp.headers.get("content-type", "")
+    resp_headers = {
+        k: v for k, v in upstream_resp.headers.items()
+        if k.lower() not in HOP_BY_HOP
+    }
+
+    # HTML: buffer fully and inject the sidebar loader, then close.
+    if "text/html" in content_type.lower():
+        raw = await upstream_resp.aread()
+        await upstream_resp.aclose()
+        await client.aclose()
+        html = _inject(raw.decode("utf-8", errors="replace"))
+        return Response(
+            content=html, status_code=upstream_resp.status_code,
+            headers=resp_headers, media_type=content_type,
+        )
+
+    # Everything else (JSON, SSE, static, downloads): stream straight through.
+    async def body_stream():
+        try:
+            async for chunk in upstream_resp.aiter_raw():
+                yield chunk
+        finally:
+            await upstream_resp.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        body_stream(), status_code=upstream_resp.status_code,
+        headers=resp_headers, media_type=content_type or None,
+    )
+
+
+def _inject(html: str) -> str:
+    """Insert the coach loader once, before </head>, falling back to
+    </body> then plain append. Idempotent within a single response."""
+    if "/__coach/static/coach.js" in html:
+        return html
+    for needle in ("</head>", "</HEAD>"):
+        if needle in html:
+            return html.replace(needle, INJECT_SNIPPET + needle, 1)
+    for needle in ("</body>", "</BODY>"):
+        if needle in html:
+            return html.replace(needle, INJECT_SNIPPET + needle, 1)
+    return html + INJECT_SNIPPET

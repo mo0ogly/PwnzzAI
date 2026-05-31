@@ -1,0 +1,6 @@
+# Outil de rendu Mermaid local (installe a la demande pour build_coach_guide.py)
+node_modules/
+package.json
+package-lock.json
+# fichiers temporaires de rendu
+*.tmp.mmd

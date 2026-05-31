@@ -1,0 +1,46 @@
+# OWASP PwnzzAI, construit depuis l'upstream a un commit PINNE.
+#
+# Le repo coach n'embarque AUCUN code OWASP (ni son historique, ni ses
+# secrets pedagogiques) : on clone PwnzzAI au build, exactement comme
+# JuiceLab clone Juice Shop. Bumper PWNZZAI_COMMIT pour suivre l'upstream.
+#
+#   docker build -f coach/Dockerfile.pwnzzai -t pwnzzai:pinned .
+#
+# Build-time args :
+#   PWNZZAI_REPO    URL upstream (defaut : OWASP/PwnzzAI)
+#   PWNZZAI_COMMIT  commit fige contre lequel le coach a ete teste
+
+FROM python:3.11-slim
+
+ARG PWNZZAI_REPO=https://github.com/OWASP/PwnzzAI.git
+ARG PWNZZAI_COMMIT=676b9cf7e924e8a3bd9711a507887acebd2d8c52
+
+WORKDIR /app
+
+# git pour le clone ; build-essential + libzbar0 = deps natives PwnzzAI (pyzbar)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git build-essential libzbar0 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone du tree upstream au commit pinne, puis on retire le .git pour ne
+# garder qu'un snapshot (pas d'historique OWASP, donc pas de secret-scanning).
+RUN git clone "${PWNZZAI_REPO}" /tmp/pwnzzai \
+    && cd /tmp/pwnzzai \
+    && git checkout "${PWNZZAI_COMMIT}" \
+    && rm -rf .git \
+    && cp -a /tmp/pwnzzai/. /app/ \
+    && rm -rf /tmp/pwnzzai
+
+RUN python -m pip install --upgrade pip \
+    && pip install --retries 10 --timeout 600 -r requirements.txt
+
+RUN mkdir -p uploads downloads instance
+
+EXPOSE 8080
+
+ENV FLASK_APP=main.py \
+    PYTHONUNBUFFERED=1
+
+# Ollama tourne comme service docker-compose separe (OLLAMA_HOST pointe
+# dessus), donc on ne lance ici que Flask.
+CMD ["flask", "run", "--host=0.0.0.0", "--port=8080", "--no-reload"]

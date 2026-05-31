@@ -1,0 +1,16 @@
+# Secrets / config locale
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Outil de rendu Mermaid (installe a la demande pour docs/build_coach_guide.py)
+docs/node_modules/
+docs/package.json
+docs/package-lock.json
+
+# Artefacts runtime PwnzzAI (montes par docker si testes localement)
+instance/
+uploads/
+downloads/
