@@ -444,6 +444,20 @@ def build(tmp: Path) -> None:
                    "Le bouton JL ferme, en bas a droite de la page du lab.")
     add_screenshot(doc, IMG_DIR / "coach-panel.png",
                    "Le panneau ouvert : onglets Briefing / Indices / Journal / Quiz / Progression.")
+    para(doc, "Onglet Indices - l'echelle graduee : N1 -5 %, N2 -10 %, N3 -20 %, "
+              "N4 -35 %, N5 -50 %. Revelation progressive (N+1 reste grise tant "
+              "que N n'est pas pris) ; chaque indice baisse le score du lab, qui "
+              "ne descend jamais sous 50/100 (score = max(50, 100 - somme des "
+              "couts)). Contenu genere par le modele local, adapte aux tentatives "
+              "ratees (N1 = declic, N5 = exemple quasi complet).")
+    add_screenshot(doc, IMG_DIR / "coach-hints.png",
+                   "Onglet Indices : 5 niveaux gradues -5/-10/-20/-35/-50 %.")
+    para(doc, "Onglet Progression - le bilan de l'eleve : bouton Verifier ma "
+              "reussite (soumet la conversation au juge), score par lab, score "
+              "moyen sur 100, labs reussis et les 4 badges. C'est aussi d'ici que "
+              "l'eleve rejoint une cohorte (champ en bas, code fourni par le prof).")
+    add_screenshot(doc, IMG_DIR / "coach-progress.png",
+                   "Onglet Progression : score, badges, rejoindre une cohorte.")
     numbered(doc, "Ouvrir http://localhost:" + COACH_PORT +
                   " et aller sur un lab (ex. Direct Prompt Injection).")
     numbered(doc, "Cliquer le bouton rond violet JL en bas a droite : le "

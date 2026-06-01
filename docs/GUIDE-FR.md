@@ -73,12 +73,19 @@ cp .env.example .env    # régler cohorte + dashboard
 docker compose up -d --build
 ```
 
-Puis tirer un modèle si ce n'est pas déjà fait (page *Basics* de PwnzzAI, ou
-en ligne de commande) :
+Puis télécharger les modèles Ollama. **Un volume Ollama neuf ne contient aucun
+modèle** : sans ça, les indices et le juge renvoient « Service coach
+indisponible ». Le script lit `OLLAMA_MODEL` + `COACH_JUDGE_MODEL` dans `.env` :
 
 ```bash
-docker exec ollama ollama pull llama3.2:1b   # modèle des labs
-docker exec ollama ollama pull llama3.2:3b   # modèle du juge (recommandé)
+scripts/pull-models.sh
+```
+
+Équivalent manuel :
+
+```bash
+docker exec ollama ollama pull llama3.2:3b   # juge + indices (recommandé)
+docker exec ollama ollama pull llama3.2:1b   # assistant des labs
 ```
 
 Vérifier que tout répond :
@@ -214,6 +221,23 @@ Le panneau ouvert (les 5 onglets Briefing / Indices / Journal / Quiz / Progressi
 
 ![Panneau coach ouvert](img/coach-panel.png)
 
+**Onglet Indices — l'échelle graduée.** Chaque niveau a un coût fixe, identique
+à JuiceLab : N1 −5 %, N2 −10 %, N3 −20 %, N4 −35 %, N5 −50 %. La révélation est
+**progressive** : N+1 reste grisé tant que N n'est pas pris. Chaque indice
+révélé fait baisser le score du lab, qui ne descend jamais sous **50/100**
+(`score = max(50, 100 − Σ coûts)`). Le contenu de chaque indice est généré par
+le modèle local et s'adapte aux tentatives ratées (N1 = simple déclic,
+N5 = exemple quasi complet) :
+
+![Onglet Indices : 5 niveaux gradues -5/-10/-20/-35/-50 %](img/coach-hints.png)
+
+**Onglet Progression — le bilan de l'élève.** Bouton *Vérifier ma réussite*
+(soumet la conversation au juge), score par lab, score moyen sur /100, nombre
+de labs réussis, et les 4 badges. C'est aussi d'ici que l'élève **rejoint une
+cohorte** (champ en bas, code fourni par le prof) :
+
+![Onglet Progression : score, badges, rejoindre une cohorte](img/coach-progress.png)
+
 **Badges** (4 tiers) : *AI Red Teamer* (3 labs sans indice), *Persévérant*
 (6 labs), *Réflexif* (5 journaux « après » > 50 mots), *Apex Predator* (tous
 les labs sans indice).
@@ -244,10 +268,22 @@ exactement comme pour un TD Juice Shop.
 
 ---
 
-## 8. Choisir le modèle du juge
+## 8. Paramétrer l'IA (modèles Ollama)
 
-Le juge est le cœur de la valeur pédagogique. Sa fiabilité dépend
-directement de la taille du modèle :
+Tout le contenu généré — **indices adaptatifs, briefing, verdict du juge** —
+vient d'un LLM local servi par Ollama. Deux modèles, réglés dans `.env` :
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `OLLAMA_MODEL` | Assistant vulnérable des labs (la cible que l'élève attaque) | `llama3.2:1b` |
+| `COACH_JUDGE_MODEL` | **Juge + indices + briefing adaptatif** (le cœur pédagogique) | `llama3.2:3b` |
+| `OLLAMA_HOST` | URL d'Ollama vue depuis le conteneur coach | `http://ollama:11434` |
+
+> Les **indices** et la **vérification de réussite** utilisent
+> `COACH_JUDGE_MODEL`, pas `OLLAMA_MODEL`. C'est ce modèle-là qu'il faut
+> soigner pour la qualité pédagogique.
+
+Fiabilité du juge selon la taille du modèle :
 
 | Modèle | Verdict | Recommandation |
 |---|---|---|
@@ -255,9 +291,22 @@ directement de la taille du modèle :
 | `llama3.2:3b` | fiable sur les cas nets | **minimum conseillé** |
 | `mistral:7b` / `llama3.1:8b` | fiable sur les cas subtils | idéal si la machine suit |
 
-Le modèle du juge est indépendant de celui des labs : on peut faire tourner
-les labs en 1b (rapide) et le juge en 3b (fiable) sur la même machine. Réglé
-par `COACH_JUDGE_MODEL`.
+Le modèle du juge est indépendant de celui des labs : labs en 1b (rapide),
+juge en 3b (fiable) sur la même machine.
+
+**Changer de modèle :**
+
+```bash
+# 1. editer .env :  COACH_JUDGE_MODEL=mistral:7b   (par exemple)
+# 2. recreer le conteneur coach pour prendre la nouvelle valeur
+docker compose up -d pwnzzai-coach
+# 3. telecharger le nouveau modele
+scripts/pull-models.sh
+```
+
+Le 1er appel après un démarrage charge le modèle en mémoire (quelques dizaines
+de secondes) ; les suivants sont rapides — `OLLAMA_KEEP_ALIVE=-1` garde le
+modèle chaud.
 
 ---
 
@@ -265,8 +314,8 @@ par `COACH_JUDGE_MODEL`.
 
 | Symptôme | Cause probable | Solution |
 |---|---|---|
-| `« Service coach indisponible »` sur Indice/Vérifier | aucun modèle de juge tiré | `docker exec ollama ollama pull llama3.2:3b` |
-| `health` renvoie `ollama:false` | idem | tirer un modèle, vérifier `COACH_JUDGE_MODEL` |
+| `« Service coach indisponible »` sur Indice/Vérifier | aucun modèle de juge tiré (volume Ollama neuf) | `scripts/pull-models.sh` |
+| `health` renvoie `ollama:false` | idem | `scripts/pull-models.sh`, vérifier `COACH_JUDGE_MODEL` |
 | Verdicts incohérents | modèle de juge trop petit (1b) | passer à 3b ou plus |
 | `« Dashboard prof non configuré »` | `JUICELAB_DASHBOARD_URL` vide | renseigner l'URL, recréer le conteneur |
 | Rien ne remonte alors que l'URL est mise | dashboard injoignable depuis le conteneur | utiliser `host.docker.internal`, vérifier le port/pare-feu |
