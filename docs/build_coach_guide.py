@@ -324,13 +324,22 @@ def build(tmp: Path) -> None:
               "volontairement vulnerable pour apprendre la securite des LLM) en "
               "un TD guide et suivi a distance, sans modifier une seule ligne du "
               "produit OWASP.")
-    bullet(doc, "Un juge automatique (LLM-as-judge) decide si l'objectif du lab "
-                "est reellement atteint, avec un score de 0 a 100.")
-    bullet(doc, "Des indices adaptatifs, generes a partir des tentatives ratees "
-                "de l'eleve, gradues sur 3 niveaux, en FR ou EN.")
-    bullet(doc, "La capture de la conversation d'attaque dans le navigateur.")
-    bullet(doc, "La remontee vers le dashboard prof JuiceLab : un TD PwnzzAI "
+    para(doc, "Il apporte la parite de fonctionnalites eleve de JuiceLab via une "
+              "sidebar a onglets injectee dans le navigateur :")
+    bullet(doc, "Briefing : mission + concepts pedagogiques par lab (bilingue), "
+                "ancres OWASP LLM Top 10.")
+    bullet(doc, "Indices gradues : 5 niveaux N1-N5, cout 5/10/20/35/50 %, "
+                "revelation progressive, penalite de score. Contenu genere par "
+                "le modele local, adapte aux tentatives ratees.")
+    bullet(doc, "Journal avant/apres et Quiz (3 QCM corriges avec explications).")
+    bullet(doc, "Juge automatique (LLM-as-judge) : verdict + score 0-100 + "
+                "justification, a partir de la conversation capturee.")
+    bullet(doc, "Onglet Progression (dashboard eleve) : score par lab, indices "
+                "consommes, badges (4 tiers), score moyen.")
+    bullet(doc, "Remontee vers le dashboard prof JuiceLab : un TD PwnzzAI "
                 "apparait dans la meme matrice de cohorte que Juice Shop.")
+    note(doc, "Scoring (identique a JuiceLab) : score = max(50, 100 - somme des "
+              "couts d'indices).")
 
     png_archi = tmp / "archi.png"
     render_mermaid(MERMAID_ARCHI, png_archi, tmp)
@@ -352,10 +361,10 @@ def build(tmp: Path) -> None:
               "PwnzzAI sans le coach.")
 
     doc.add_heading("3. Installation", level=1)
-    para(doc, "Depuis la racine du depot PwnzzAI :")
+    para(doc, "Stack autonome (PwnzzAI clone au build). Depuis la racine du depot :")
     code_block(doc, [
-        "docker compose -f docker-compose.yml -f docker-compose.coach.yml "
-        "up -d --build",
+        "cp .env.example .env    # cohorte + dashboard",
+        "docker compose up -d --build",
     ])
     para(doc, "Puis tirer les modeles Ollama (page Basics de PwnzzAI, ou CLI) :")
     code_block(doc, [
@@ -387,24 +396,25 @@ def build(tmp: Path) -> None:
               "automatiquement au premier evenement.")
     para(doc, "Apres modification du .env, recreer le conteneur coach :")
     code_block(doc, [
-        "docker compose -f docker-compose.yml -f docker-compose.coach.yml "
-        "up -d pwnzzai-coach",
+        "docker compose up -d pwnzzai-coach",
     ])
 
     doc.add_heading("5. Cote eleve : comment ca s'utilise", level=1)
     numbered(doc, "Ouvrir http://localhost:" + COACH_PORT +
                   " et aller sur un lab (ex. Direct Prompt Injection).")
     numbered(doc, "Cliquer le bouton rond violet JL en bas a droite : le "
-                  "panneau coach s'ouvre.")
-    numbered(doc, "Le panneau affiche l'objectif, la categorie OWASP, le "
-                  "compteur de conversation capturee, et les boutons Indice / "
-                  "Verifier ma reussite / Voir la conversation, plus un journal.")
-    numbered(doc, "Attaquer l'assistant comme d'habitude (le coach n'interfere "
-                  "pas).")
-    numbered(doc, "Bloque ? Indice donne un conseil adapte aux tentatives "
-                  "ratees (3 niveaux).")
-    numbered(doc, "Verifier ma reussite soumet la conversation au juge : "
-                  "Reussi / Partiel / Pas encore + score + justification.")
+                  "panneau coach a onglets s'ouvre (bouton FR/EN).")
+    numbered(doc, "5 onglets : Briefing (mission + concepts), Indices (5 niveaux "
+                  "N1-N5 a cout croissant), Journal (avant/apres), Quiz (3 QCM), "
+                  "Progression (juge, score, badges).")
+    numbered(doc, "Attaquer l'assistant comme d'habitude : la conversation est "
+                  "capturee automatiquement.")
+    numbered(doc, "Bloque ? L'onglet Indices revele un conseil gradue (N1 = "
+                  "declic, N5 = exemple quasi complet) ; chaque indice baisse le "
+                  "score (plancher 50).")
+    numbered(doc, "Verifier ma reussite (onglet Progression) soumet la "
+                  "conversation au juge : Reussi / Partiel / Pas encore + score + "
+                  "justification ; une reussite peut debloquer un badge.")
     note(doc, "Astuce prof : un lien termine par #coach (ex. "
               "http://localhost:" + COACH_PORT + "/indirect-prompt-injection"
               "#coach) ouvre le panneau automatiquement.")
@@ -416,9 +426,11 @@ def build(tmp: Path) -> None:
         doc, ["Evenement", "Declencheur", "Donnees"],
         [
             ["session_start", "ouverture d'une page lab", "chemin, identite si detectee"],
-            ["hint_revealed", "clic sur Indice", "niveau d'indice"],
+            ["hint_revealed", "revelation d'un indice", "niveau N1-N5, cout, score"],
             ["challenge_solved", "juge -> Reussi", "score, verdict, justification"],
-            ["journal_filled", "Enregistrer le journal", "longueur, texte"],
+            ["journal_filled", "Journal apres enregistre", "longueur, texte"],
+            ["quiz_completed", "validation du quiz", "score, bonnes / total"],
+            ["badge_earned", "badge debloque", "identifiant du badge"],
         ],
         [45, 60, 65],
     )

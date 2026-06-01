@@ -1,0 +1,232 @@
+{
+  "_comment": "Concepts pedagogiques par lab (mission = goal_* de labs.json). Bilingue FR/EN strict, ancre sur OWASP LLM Top 10 (2025). 2-3 concepts max par lab.",
+  "schema_version": "coach.briefing.v1",
+  "briefings": {
+    "pwnzzai-direct-prompt-injection": {
+      "concepts": [
+        {
+          "title_fr": "Prompt systeme vs entree utilisateur",
+          "title_en": "System prompt vs user input",
+          "body_fr": "Un assistant LLM est gouverne par un prompt systeme (regles cachees) place avant ta saisie. L'injection directe consiste a formuler une entree qui fait primer ta consigne sur ces regles : le modele ne distingue pas structurellement instruction et donnee.",
+          "body_en": "An LLM assistant is governed by a system prompt (hidden rules) placed before your input. Direct injection means crafting input that makes your instruction outweigh those rules: the model has no structural boundary between instruction and data."
+        },
+        {
+          "title_fr": "Techniques d'override",
+          "title_en": "Override techniques",
+          "body_fr": "Override explicite ('ignore les instructions precedentes'), changement de role (jeu de role), confusion de delimiteurs, appel a une fausse autorite, ou demande de repeter le prompt systeme. Aux niveaux durs, un filtre de mots-cles impose paraphrase ou encodage.",
+          "body_en": "Explicit override ('ignore previous instructions'), role switching (role-play), delimiter confusion, fake-authority claims, or asking the model to repeat its system prompt. At harder levels a keyword filter forces paraphrase or encoding."
+        },
+        {
+          "title_fr": "Defense canonique",
+          "title_en": "Canonical defense",
+          "body_fr": "Aucune defense n'est parfaite : separation des canaux, instructions signees, filtrage entree/sortie, et privilege minimal du modele. OWASP classe ce risque LLM01.",
+          "body_en": "No defense is perfect: channel separation, signed instructions, input/output filtering, and least privilege for the model. OWASP ranks this as LLM01."
+        }
+      ]
+    },
+    "pwnzzai-indirect-prompt-injection": {
+      "concepts": [
+        {
+          "title_fr": "Le payload voyage dans la donnee",
+          "title_en": "The payload rides in the data",
+          "body_fr": "En injection indirecte, l'instruction malveillante est cachee dans un contenu que le modele lira plus tard (document, commentaire, snippet recupere), pas dans ton message direct. Le modele l'execute en croyant traiter une simple donnee.",
+          "body_en": "In indirect injection, the malicious instruction is hidden inside content the model will later read (a document, comment, retrieved snippet), not in your direct message. The model executes it while believing it is processing plain data."
+        },
+        {
+          "title_fr": "Surface d'ingestion",
+          "title_en": "Ingestion surface",
+          "body_fr": "Identifie ce que le modele consomme automatiquement : champ telecharge, contenu indexe, page web resumee. C'est la que tu plantes l'instruction, puis tu declenches le traitement.",
+          "body_en": "Identify what the model ingests automatically: an uploaded field, indexed content, a summarized web page. That is where you plant the instruction, then trigger processing."
+        },
+        {
+          "title_fr": "Pourquoi c'est plus grave",
+          "title_en": "Why it is more dangerous",
+          "body_fr": "L'attaque ne passe pas par le chat : elle peut toucher d'autres utilisateurs et survivre dans le temps. OWASP LLM01 couvre injection directe et indirecte.",
+          "body_en": "The attack does not go through the chat: it can hit other users and persist over time. OWASP LLM01 covers both direct and indirect injection."
+        }
+      ]
+    },
+    "pwnzzai-sensitive-info": {
+      "concepts": [
+        {
+          "title_fr": "Le contexte fuit",
+          "title_en": "Context leaks",
+          "body_fr": "Le modele a souvent acces a un contexte confidentiel (secrets du prompt systeme, documents internes, donnees d'autres utilisateurs). LLM02 traite la divulgation de ces informations sensibles via des questions detournees.",
+          "body_en": "The model often has access to confidential context (system-prompt secrets, internal documents, other users' data). LLM02 covers the disclosure of such sensitive information through indirect questioning."
+        },
+        {
+          "title_fr": "Extraction par detour",
+          "title_en": "Extraction by detour",
+          "body_fr": "Questionnement indirect, cadrage en jeu de role, demande de resume ('repete tout ce qui precede'), ou reformulation pour contourner un refus. Le but : faire emettre au modele la donnee qu'il doit taire.",
+          "body_en": "Indirect questioning, role-play framing, summarization requests ('repeat everything above'), or rephrasing to bypass a refusal. The goal: make the model emit the data it must withhold."
+        },
+        {
+          "title_fr": "Defense",
+          "title_en": "Defense",
+          "body_fr": "Ne jamais mettre de secret dans le prompt ; nettoyer les sorties ; minimiser le contexte donne au modele ; tokeniser/masquer les PII.",
+          "body_en": "Never put secrets in the prompt; sanitize outputs; minimize the context given to the model; tokenize/mask PII."
+        }
+      ]
+    },
+    "pwnzzai-insecure-plugin": {
+      "concepts": [
+        {
+          "title_fr": "La sortie LLM devient une action",
+          "title_en": "LLM output becomes an action",
+          "body_fr": "Quand la sortie du modele alimente un plugin/outil (requete, commande, parametre) sans validation, une entree controlee peut detourner cette action. LLM07 cible la mauvaise gestion des sorties et la conception non securisee des plugins.",
+          "body_en": "When the model's output feeds a plugin/tool (a query, command, parameter) without validation, controlled input can hijack that action. LLM07 targets improper output handling and insecure plugin design."
+        },
+        {
+          "title_fr": "Sortir du cadre prevu",
+          "title_en": "Breaking out of scope",
+          "body_fr": "Injecte dans l'appel d'outil : parametres non echappes, chainage d'action, contenu interprete par le plugin. Le modele fait confiance a une sortie non verifiee et l'execute.",
+          "body_en": "Inject into the tool call: unescaped parameters, action chaining, content interpreted by the plugin. The model trusts unvalidated output and executes it."
+        }
+      ]
+    },
+    "pwnzzai-excessive-agency": {
+      "concepts": [
+        {
+          "title_fr": "Trop de pouvoir",
+          "title_en": "Too much power",
+          "body_fr": "L'agence excessive (LLM06) survient quand un agent dispose d'outils ou de permissions plus larges que necessaire : il peut modifier/supprimer des donnees ou declencher une operation reservee a partir d'une simple conversation.",
+          "body_en": "Excessive agency (LLM06) arises when an agent has tools or permissions broader than needed: it can modify/delete data or trigger a privileged operation from plain conversation."
+        },
+        {
+          "title_fr": "Franchir une frontiere de privilege",
+          "title_en": "Crossing a privilege boundary",
+          "body_fr": "Demande une action qui traverse une limite d'autorisation, souvent en la presentant comme legitime, en se faisant passer pour un role autorise, ou en chainant une requete benigne vers une action privilegiee.",
+          "body_en": "Request an action that crosses an authorization boundary, often by framing it as legitimate, impersonating an authorized role, or chaining a benign request into a privileged one."
+        }
+      ]
+    },
+    "pwnzzai-model-theft": {
+      "concepts": [
+        {
+          "title_fr": "Extraire l'actif protege",
+          "title_en": "Extracting the protected asset",
+          "body_fr": "Le vol de modele (LLM10) vise a recuperer le prompt systeme verbatim, les regles de decision, ou assez de comportement pour repliquer la fonction proprietaire du modele par interrogation systematique.",
+          "body_en": "Model theft (LLM10) aims to recover the verbatim system prompt, the decision rules, or enough behaviour to replicate the model's proprietary function through systematic querying."
+        },
+        {
+          "title_fr": "Cartographier la surface",
+          "title_en": "Mapping the surface",
+          "body_fr": "Sonde les bornes, demande les instructions verbatim, lance des requetes structurees qui revelent la frontiere de decision. Un simple echange general n'est pas une extraction.",
+          "body_en": "Probe boundaries, ask for verbatim instructions, run structured queries that reveal the decision boundary. A casual general exchange is not extraction."
+        }
+      ]
+    },
+    "pwnzzai-supply-chain": {
+      "concepts": [
+        {
+          "title_fr": "Maillon tiers compromis",
+          "title_en": "Compromised third-party link",
+          "body_fr": "LLM05 cible les composants externes integres sans verification d'integrite : modele pre-entraine, dependance, dataset tiers. Un artefact altere ou backdoore introduit la vulnerabilite dans l'application.",
+          "body_en": "LLM05 targets external components integrated without integrity checks: a pretrained model, a dependency, a third-party dataset. A tampered or backdoored artefact brings the vulnerability into the app."
+        },
+        {
+          "title_fr": "Provenance et integrite",
+          "title_en": "Provenance and integrity",
+          "body_fr": "Inspecte ce qui est telecharge/charge, identifie l'artefact non fiable, et declenche ou demontre le payload malveillant qu'il transporte. La parade : signatures, SBOM, verification d'integrite.",
+          "body_en": "Inspect what is fetched/loaded, identify the untrusted artefact, and trigger or demonstrate the malicious payload it carries. The fix: signatures, SBOM, integrity verification."
+        }
+      ]
+    },
+    "pwnzzai-data-poisoning-catering-rag": {
+      "concepts": [
+        {
+          "title_fr": "Empoisonner la base RAG",
+          "title_en": "Poisoning the RAG store",
+          "body_fr": "Un assistant RAG recupere ses reponses dans une base documentaire. Si tu peux y ecrire, tu y injectes un document contenant la fausse affirmation ou une instruction, formule pour remonter sur la requete victime. LLM04 (data poisoning).",
+          "body_en": "A RAG assistant draws answers from a document store. If you can write to it, you inject a document containing the false claim or an instruction, crafted to rank high for the victim query. LLM04 (data poisoning)."
+        },
+        {
+          "title_fr": "Faire remonter le poison",
+          "title_en": "Surfacing the poison",
+          "body_fr": "Le document empoisonne doit etre recupere par la recherche, puis repris par le modele. Soigne les mots-cles pour qu'il ressorte, puis pose la question qui le declenche.",
+          "body_en": "The poisoned document must be retrieved by search, then echoed by the model. Tune the keywords so it surfaces, then ask the question that triggers it."
+        }
+      ]
+    },
+    "pwnzzai-data-poisoning": {
+      "concepts": [
+        {
+          "title_fr": "Corrompre l'apprentissage",
+          "title_en": "Corrupting the learning",
+          "body_fr": "LLM04 : en controlant une partie des donnees d'entrainement/reglage, tu implantes un comportement cible (association declencheur->sortie, backdoor, biais) qui se manifeste a l'inference.",
+          "body_en": "LLM04: by controlling part of the training/tuning data, you implant a target behaviour (trigger->output association, backdoor, bias) that manifests at inference."
+        },
+        {
+          "title_fr": "Declencheur et preuve",
+          "title_en": "Trigger and proof",
+          "body_fr": "Forge des echantillons qui mappent un declencheur a une sortie choisie, reentraine, puis demontre le changement au test. Un entrainement sans changement observable n'est pas une reussite.",
+          "body_en": "Craft samples mapping a trigger to a chosen output, retrain, then demonstrate the change at test time. Training without an observable change is not success."
+        }
+      ]
+    },
+    "pwnzzai-misinformation": {
+      "concepts": [
+        {
+          "title_fr": "Fausse certitude",
+          "title_en": "False certainty",
+          "body_fr": "LLM09 : le modele affirme avec assurance une information fausse comme si elle etait verifiee (source inventee, capacite imaginaire, hallucination assumee). Le risque cle est la surconfiance de l'utilisateur.",
+          "body_en": "LLM09: the model confidently asserts a false statement as if verified (a fabricated source, an imaginary capability, an assumed hallucination). The key risk is user overreliance."
+        },
+        {
+          "title_fr": "Provoquer l'hallucination",
+          "title_en": "Inducing hallucination",
+          "body_fr": "Questions orientees ou hors-distribution, demande de fausses citations, premisse fausse que le modele confirme. La sortie doit affirmer le faux, pas le nuancer.",
+          "body_en": "Leading or out-of-distribution questions, requests for fake citations, a false premise the model confirms. The output must assert the falsehood, not hedge it."
+        }
+      ]
+    },
+    "pwnzzai-dos": {
+      "concepts": [
+        {
+          "title_fr": "Consommation non bornee",
+          "title_en": "Unbounded consumption",
+          "body_fr": "Sans limite sur la taille d'entree ou la longueur de sortie, une seule requete peut provoquer une consommation disproportionnee (boucle, expansion couteuse, sortie geante). OWASP LLM10 (unbounded consumption).",
+          "body_en": "Without limits on input size or output length, a single request can cause disproportionate consumption (loop, costly expansion, huge output). OWASP LLM10 (unbounded consumption)."
+        },
+        {
+          "title_fr": "Forcer le cout",
+          "title_en": "Forcing the cost",
+          "body_fr": "Forge une entree qui impose une operation couteuse : expansion recursive, 'repete indefiniment', sortie maximale, traitement imbrique. Une reponse de cout normal n'est pas une reussite.",
+          "body_en": "Craft an input that forces a costly operation: recursive expansion, 'repeat forever', maximal output, nested processing. A normal-cost response is not success."
+        }
+      ]
+    },
+    "pwnzzai-customer-support-safety": {
+      "concepts": [
+        {
+          "title_fr": "Contourner la moderation",
+          "title_en": "Bypassing moderation",
+          "body_fr": "Un bot de support est protege par une couche de securite/moderation. Le contournement vise a lui faire produire un contenu toxique, dangereux ou interdit malgre ce garde-fou.",
+          "body_en": "A support bot is protected by a safety/moderation layer. The bypass aims to make it produce toxic, harmful, or disallowed content despite that guardrail."
+        },
+        {
+          "title_fr": "Techniques d'evasion",
+          "title_en": "Evasion techniques",
+          "body_fr": "Obfuscation, jeu de role, cadrage hypothetique, changement de langue, ou decoupage de la requete interdite sur plusieurs tours. Le contenu interdit doit reellement apparaitre.",
+          "body_en": "Obfuscation, role-play, hypothetical framing, language switching, or splitting the disallowed request across turns. The disallowed content must actually appear."
+        }
+      ]
+    },
+    "pwnzzai-agentic-tools": {
+      "concepts": [
+        {
+          "title_fr": "Detourner les outils de l'agent",
+          "title_en": "Hijacking the agent's tools",
+          "body_fr": "Un agent traduit le langage naturel en appels d'outils (souvent SQL). En exploitant un cadrage faible, tu le pousses a executer une requete qui expose des donnees hors de ta portee legitime.",
+          "body_en": "An agent translates natural language into tool calls (often SQL). By exploiting weak scoping, you push it to run a query that exposes data beyond your legitimate scope."
+        },
+        {
+          "title_fr": "Atteindre la donnee interdite",
+          "title_en": "Reaching forbidden data",
+          "body_fr": "Formule des requetes qui poussent l'agent vers les donnees d'autres utilisateurs, les tables systeme, ou des secrets de routage. L'agent doit reellement renvoyer ou effectuer le resultat hors-perimetre.",
+          "body_en": "Phrase requests that drive the agent toward other users' data, system tables, or routing secrets. The agent must actually return or perform the out-of-scope result."
+        }
+      ]
+    }
+  }
+}

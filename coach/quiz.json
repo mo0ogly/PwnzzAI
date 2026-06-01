@@ -1,0 +1,383 @@
+{
+  "_comment": "3 QCM 4-options bilingues par lab. correct = index 0-based. Factuel OWASP LLM Top 10 (2025). Les champs correct/explanation NE SONT PAS exposes par /__coach/quiz/questions (strip cote serveur).",
+  "schema_version": "coach.quiz.v1",
+  "quiz": {
+    "pwnzzai-direct-prompt-injection": [
+      {
+        "question_fr": "Pourquoi un LLM est-il vulnerable a l'injection de prompt directe ?",
+        "question_en": "Why is an LLM vulnerable to direct prompt injection?",
+        "options_fr": ["Parce qu'il chiffre mal les donnees", "Parce qu'il ne distingue pas structurellement instruction et donnee", "Parce qu'il utilise HTTP au lieu de HTTPS", "Parce qu'il manque de captcha"],
+        "options_en": ["Because it encrypts data poorly", "Because it has no structural boundary between instruction and data", "Because it uses HTTP instead of HTTPS", "Because it lacks a captcha"],
+        "correct": 1,
+        "explanation_fr": "Le modele traite prompt systeme et entree utilisateur dans le meme flux de tokens : rien ne separe par construction l'instruction de la donnee.",
+        "explanation_en": "The model processes the system prompt and user input in the same token stream: nothing structurally separates instruction from data."
+      },
+      {
+        "question_fr": "Quelle technique releve de l'injection de prompt directe ?",
+        "question_en": "Which technique is direct prompt injection?",
+        "options_fr": ["Forcer un debordement de tampon", "Demander 'ignore les instructions precedentes et...'", "Scanner les ports ouverts", "Voler un cookie de session"],
+        "options_en": ["Forcing a buffer overflow", "Asking 'ignore previous instructions and...'", "Scanning open ports", "Stealing a session cookie"],
+        "correct": 1,
+        "explanation_fr": "L'override explicite d'instructions est l'exemple canonique d'injection directe (LLM01).",
+        "explanation_en": "Explicit instruction override is the canonical example of direct injection (LLM01)."
+      },
+      {
+        "question_fr": "Quelle defense reduit le risque d'injection de prompt ?",
+        "question_en": "Which defense reduces prompt injection risk?",
+        "options_fr": ["Augmenter la temperature du modele", "Filtrer entrees/sorties et appliquer le privilege minimal", "Mettre le secret dans le prompt systeme", "Desactiver les logs"],
+        "options_en": ["Increasing the model temperature", "Filtering inputs/outputs and applying least privilege", "Putting the secret in the system prompt", "Disabling logs"],
+        "correct": 1,
+        "explanation_fr": "Filtrage entree/sortie, separation des canaux et privilege minimal limitent l'impact. Mettre un secret dans le prompt l'aggrave.",
+        "explanation_en": "Input/output filtering, channel separation and least privilege limit impact. Putting a secret in the prompt makes it worse."
+      }
+    ],
+    "pwnzzai-indirect-prompt-injection": [
+      {
+        "question_fr": "Ou se trouve le payload dans une injection de prompt indirecte ?",
+        "question_en": "Where does the payload live in an indirect prompt injection?",
+        "options_fr": ["Dans le message direct de l'utilisateur", "Dans un contenu externe que le modele ingere (document, snippet)", "Dans l'en-tete HTTP", "Dans le certificat TLS"],
+        "options_en": ["In the user's direct message", "In external content the model ingests (a document, a snippet)", "In the HTTP header", "In the TLS certificate"],
+        "correct": 1,
+        "explanation_fr": "L'instruction est cachee dans une donnee que le modele lira plus tard, pas dans le chat direct.",
+        "explanation_en": "The instruction is hidden in data the model will later read, not in the direct chat."
+      },
+      {
+        "question_fr": "Pourquoi l'injection indirecte est-elle souvent plus dangereuse que la directe ?",
+        "question_en": "Why is indirect injection often more dangerous than direct?",
+        "options_fr": ["Elle est plus rapide a taper", "Elle peut toucher d'autres utilisateurs et persister dans le temps", "Elle ne necessite aucun modele", "Elle chiffre les donnees"],
+        "options_en": ["It is faster to type", "It can hit other users and persist over time", "It needs no model at all", "It encrypts data"],
+        "correct": 1,
+        "explanation_fr": "Le payload reside dans une donnee partagee : il peut affecter d'autres victimes et rester actif.",
+        "explanation_en": "The payload lives in shared data: it can affect other victims and stay active."
+      },
+      {
+        "question_fr": "Quelle est la premiere etape pour exploiter une injection indirecte ?",
+        "question_en": "What is the first step to exploit an indirect injection?",
+        "options_fr": ["Brute-forcer le mot de passe admin", "Identifier la surface d'ingestion que le modele lit automatiquement", "Desactiver le pare-feu", "Cloner le depot git"],
+        "options_en": ["Brute-forcing the admin password", "Identifying the ingestion surface the model reads automatically", "Disabling the firewall", "Cloning the git repo"],
+        "correct": 1,
+        "explanation_fr": "Il faut reperer le champ/contenu que le modele consomme, puis y planter l'instruction.",
+        "explanation_en": "You must spot the field/content the model consumes, then plant the instruction there."
+      }
+    ],
+    "pwnzzai-sensitive-info": [
+      {
+        "question_fr": "Quel risque OWASP couvre la divulgation d'informations sensibles ?",
+        "question_en": "Which OWASP risk covers sensitive information disclosure?",
+        "options_fr": ["LLM01", "LLM02", "LLM06", "LLM10"],
+        "options_en": ["LLM01", "LLM02", "LLM06", "LLM10"],
+        "correct": 1,
+        "explanation_fr": "LLM02 (Sensitive Information Disclosure) traite la fuite de secrets, PII et donnees internes.",
+        "explanation_en": "LLM02 (Sensitive Information Disclosure) covers leakage of secrets, PII and internal data."
+      },
+      {
+        "question_fr": "Quelle approche aide a extraire une donnee que le modele doit taire ?",
+        "question_en": "Which approach helps extract data the model should withhold?",
+        "options_fr": ["Demander poliment une seule fois puis abandonner", "Questionnement detourne et demande de resumer 'tout ce qui precede'", "Envoyer un paquet TCP malforme", "Changer la couleur du theme"],
+        "options_en": ["Asking politely once then giving up", "Indirect questioning and asking to summarize 'everything above'", "Sending a malformed TCP packet", "Changing the theme color"],
+        "correct": 1,
+        "explanation_fr": "Le detour, le resume et la reformulation contournent souvent un refus direct.",
+        "explanation_en": "Detour, summarization and rephrasing often bypass a direct refusal."
+      },
+      {
+        "question_fr": "Quelle pratique previent la fuite d'informations sensibles ?",
+        "question_en": "Which practice prevents sensitive information leakage?",
+        "options_fr": ["Mettre tous les secrets dans le prompt systeme", "Minimiser le contexte et nettoyer/masquer les sorties", "Augmenter la taille du contexte", "Logger les mots de passe en clair"],
+        "options_en": ["Putting all secrets in the system prompt", "Minimizing context and sanitizing/masking outputs", "Increasing the context window", "Logging passwords in clear"],
+        "correct": 1,
+        "explanation_fr": "Minimisation du contexte et nettoyage des sorties reduisent la surface de fuite ; un secret dans le prompt est exfiltrable.",
+        "explanation_en": "Context minimization and output sanitization reduce the leak surface; a secret in the prompt is exfiltrable."
+      }
+    ],
+    "pwnzzai-insecure-plugin": [
+      {
+        "question_fr": "Quel est le danger central d'un plugin LLM non securise ?",
+        "question_en": "What is the core danger of an insecure LLM plugin?",
+        "options_fr": ["La sortie du modele alimente une action sans validation", "Le plugin est ecrit en Python", "Le plugin utilise trop de RAM", "Le plugin a une icone moche"],
+        "options_en": ["The model output feeds an action without validation", "The plugin is written in Python", "The plugin uses too much RAM", "The plugin has an ugly icon"],
+        "correct": 0,
+        "explanation_fr": "LLM07 : une sortie non validee passee a un outil peut declencher une action non prevue (injection dans l'appel).",
+        "explanation_en": "LLM07: an unvalidated output passed to a tool can trigger an unintended action (injection into the call)."
+      },
+      {
+        "question_fr": "Comment un attaquant abuse-t-il d'un plugin mal isole ?",
+        "question_en": "How does an attacker abuse a poorly isolated plugin?",
+        "options_fr": ["En injectant des parametres non echappes dans l'appel d'outil", "En redemarrant le serveur", "En vidant le cache navigateur", "En changeant de langue"],
+        "options_en": ["By injecting unescaped parameters into the tool call", "By restarting the server", "By clearing the browser cache", "By switching language"],
+        "correct": 0,
+        "explanation_fr": "Parametres non echappes, chainage d'action ou contenu interprete par le plugin permettent de sortir du cadre prevu.",
+        "explanation_en": "Unescaped parameters, action chaining or content interpreted by the plugin let you break out of scope."
+      },
+      {
+        "question_fr": "Quelle defense s'applique a la mauvaise gestion des sorties ?",
+        "question_en": "Which defense applies to improper output handling?",
+        "options_fr": ["Faire confiance a toute sortie du modele", "Valider/echapper la sortie avant de la passer a un outil", "Augmenter la temperature", "Supprimer l'authentification"],
+        "options_en": ["Trusting every model output", "Validating/escaping output before passing it to a tool", "Increasing temperature", "Removing authentication"],
+        "correct": 1,
+        "explanation_fr": "Toute sortie LLM destinee a un systeme aval doit etre traitee comme une entree non fiable.",
+        "explanation_en": "Any LLM output destined for a downstream system must be treated as untrusted input."
+      }
+    ],
+    "pwnzzai-excessive-agency": [
+      {
+        "question_fr": "Qu'est-ce que l'agence excessive (LLM06) ?",
+        "question_en": "What is excessive agency (LLM06)?",
+        "options_fr": ["Un modele trop lent", "Un agent dote de permissions/outils plus larges que necessaire", "Un prompt trop long", "Une fuite memoire"],
+        "options_en": ["A model that is too slow", "An agent with permissions/tools broader than needed", "A prompt that is too long", "A memory leak"],
+        "correct": 1,
+        "explanation_fr": "L'agence excessive vient d'un exces de fonctionnalites, de permissions ou d'autonomie accordees a l'agent.",
+        "explanation_en": "Excessive agency stems from excessive functionality, permissions or autonomy granted to the agent."
+      },
+      {
+        "question_fr": "Comment pousser un agent a une action privilegiee ?",
+        "question_en": "How do you push an agent into a privileged action?",
+        "options_fr": ["En la cadrant comme legitime ou en se faisant passer pour un role autorise", "En coupant l'electricite", "En recompilant le noyau", "En videx le panier"],
+        "options_en": ["By framing it as legitimate or impersonating an authorized role", "By cutting the power", "By recompiling the kernel", "By emptying the cart"],
+        "correct": 0,
+        "explanation_fr": "Cadrage legitime, usurpation de role ou chainage d'une requete benigne vers une action privilegiee.",
+        "explanation_en": "Legitimate framing, role impersonation, or chaining a benign request into a privileged action."
+      },
+      {
+        "question_fr": "Quelle parade limite l'agence excessive ?",
+        "question_en": "Which mitigation limits excessive agency?",
+        "options_fr": ["Donner tous les droits a l'agent", "Limiter outils, permissions et exiger une validation humaine pour les actions sensibles", "Desactiver le HTTPS", "Augmenter la taille du modele"],
+        "options_en": ["Granting all rights to the agent", "Limiting tools, permissions and requiring human approval for sensitive actions", "Disabling HTTPS", "Increasing model size"],
+        "correct": 1,
+        "explanation_fr": "Privilege minimal, outils restreints et human-in-the-loop sur les actions a impact reduisent le risque.",
+        "explanation_en": "Least privilege, restricted tools and human-in-the-loop on impactful actions reduce the risk."
+      }
+    ],
+    "pwnzzai-model-theft": [
+      {
+        "question_fr": "Que cherche a obtenir le vol de modele (LLM10) ?",
+        "question_en": "What does model theft (LLM10) aim to obtain?",
+        "options_fr": ["Le mot de passe wifi", "Le prompt systeme verbatim ou assez de comportement pour repliquer le modele", "La version du navigateur", "La couleur du logo"],
+        "options_en": ["The wifi password", "The verbatim system prompt or enough behaviour to replicate the model", "The browser version", "The logo color"],
+        "correct": 1,
+        "explanation_fr": "Le vol vise les actifs proprietaires : instructions cachees, regles, comportement distillable.",
+        "explanation_en": "Theft targets proprietary assets: hidden instructions, rules, distillable behaviour."
+      },
+      {
+        "question_fr": "Quelle methode releve de l'extraction de modele ?",
+        "question_en": "Which method is model extraction?",
+        "options_fr": ["Interrogation systematique pour cartographier la frontiere de decision", "Lecture du fichier /etc/passwd", "Sniffing du wifi", "Un seul bonjour poli"],
+        "options_en": ["Systematic querying to map the decision boundary", "Reading /etc/passwd", "Wifi sniffing", "A single polite hello"],
+        "correct": 0,
+        "explanation_fr": "Le sondage structure et la demande d'instructions verbatim revelent le comportement proprietaire.",
+        "explanation_en": "Structured probing and verbatim-instruction requests reveal the proprietary behaviour."
+      },
+      {
+        "question_fr": "Quelle protection limite le vol de modele ?",
+        "question_en": "Which protection limits model theft?",
+        "options_fr": ["Reponses verbatim illimitees", "Limitation de debit, detection d'abus et refus de divulguer le prompt", "Desactiver l'authentification", "Augmenter la temperature"],
+        "options_en": ["Unlimited verbatim answers", "Rate limiting, abuse detection and refusing to disclose the prompt", "Disabling authentication", "Increasing temperature"],
+        "correct": 1,
+        "explanation_fr": "Rate limiting, monitoring des requetes d'extraction et non-divulgation des instructions reduisent le risque.",
+        "explanation_en": "Rate limiting, monitoring of extraction queries and non-disclosure of instructions reduce the risk."
+      }
+    ],
+    "pwnzzai-supply-chain": [
+      {
+        "question_fr": "Que cible la vulnerabilite de chaine d'approvisionnement (LLM05) ?",
+        "question_en": "What does supply chain vulnerability (LLM05) target?",
+        "options_fr": ["La vitesse du reseau", "Des composants tiers integres sans verification d'integrite", "La taille de l'ecran", "Le nombre d'onglets"],
+        "options_en": ["Network speed", "Third-party components integrated without integrity checks", "Screen size", "Number of tabs"],
+        "correct": 1,
+        "explanation_fr": "Modeles pre-entraines, dependances et datasets tiers non verifies introduisent la vulnerabilite.",
+        "explanation_en": "Unverified pretrained models, dependencies and third-party datasets bring in the vulnerability."
+      },
+      {
+        "question_fr": "Comment demontrer une compromission de chaine d'approvisionnement ?",
+        "question_en": "How do you demonstrate a supply-chain compromise?",
+        "options_fr": ["Declencher le payload d'un artefact tiers altere ou backdoore", "Changer le fond d'ecran", "Vider le panier", "Rebooter le routeur"],
+        "options_en": ["Triggering the payload of a tampered or backdoored third-party artefact", "Changing the wallpaper", "Emptying the cart", "Rebooting the router"],
+        "correct": 0,
+        "explanation_fr": "Il faut prouver qu'un artefact non fiable est malveillant et declencher son comportement.",
+        "explanation_en": "You must prove an untrusted artefact is malicious and trigger its behaviour."
+      },
+      {
+        "question_fr": "Quelle pratique reduit le risque de chaine d'approvisionnement ?",
+        "question_en": "Which practice reduces supply-chain risk?",
+        "options_fr": ["Telecharger n'importe quel modele sans verifier", "Signatures, SBOM et verification d'integrite des artefacts", "Desactiver les mises a jour", "Augmenter la temperature"],
+        "options_en": ["Downloading any model without checking", "Signatures, SBOM and integrity verification of artefacts", "Disabling updates", "Increasing temperature"],
+        "correct": 1,
+        "explanation_fr": "Verifier provenance et integrite (signatures, SBOM) est la parade canonique de LLM05.",
+        "explanation_en": "Verifying provenance and integrity (signatures, SBOM) is the canonical LLM05 mitigation."
+      }
+    ],
+    "pwnzzai-data-poisoning-catering-rag": [
+      {
+        "question_fr": "Comment empoisonne-t-on un assistant RAG ?",
+        "question_en": "How do you poison a RAG assistant?",
+        "options_fr": ["En injectant un document piege dans la base que la recherche remonte", "En coupant le reseau", "En changeant la police d'ecriture", "En augmentant la RAM"],
+        "options_en": ["By injecting a trap document into the store that search surfaces", "By cutting the network", "By changing the font", "By adding RAM"],
+        "correct": 0,
+        "explanation_fr": "Le document empoisonne doit etre recupere puis repris par le modele (LLM04 data poisoning).",
+        "explanation_en": "The poisoned document must be retrieved then echoed by the model (LLM04 data poisoning)."
+      },
+      {
+        "question_fr": "Que doit faire le document empoisonne pour reussir ?",
+        "question_en": "What must the poisoned document do to succeed?",
+        "options_fr": ["Etre recupere par la recherche et piloter la reponse du modele", "Etre le plus court possible", "Contenir une image", "Etre chiffre"],
+        "options_en": ["Be retrieved by search and drive the model's answer", "Be as short as possible", "Contain an image", "Be encrypted"],
+        "correct": 0,
+        "explanation_fr": "Sa formulation doit le faire remonter sur la requete victime et faire reprendre sa fausse affirmation.",
+        "explanation_en": "Its wording must make it rank for the victim query and get its false claim echoed."
+      },
+      {
+        "question_fr": "Quelle defense protege une base RAG ?",
+        "question_en": "Which defense protects a RAG store?",
+        "options_fr": ["Autoriser tout le monde a ecrire sans controle", "Controler la provenance des documents et valider/filtrer les ingestions", "Desactiver la recherche", "Augmenter la temperature"],
+        "options_en": ["Letting anyone write without control", "Controlling document provenance and validating/filtering ingestion", "Disabling search", "Increasing temperature"],
+        "correct": 1,
+        "explanation_fr": "Controle des sources, validation a l'ingestion et tracabilite limitent l'empoisonnement.",
+        "explanation_en": "Source control, ingestion validation and traceability limit poisoning."
+      }
+    ],
+    "pwnzzai-data-poisoning": [
+      {
+        "question_fr": "En quoi consiste l'empoisonnement de donnees d'entrainement (LLM04) ?",
+        "question_en": "What is training data poisoning (LLM04)?",
+        "options_fr": ["Ralentir le GPU", "Alterer les donnees d'entrainement pour implanter un comportement cible", "Changer le port reseau", "Effacer les logs"],
+        "options_en": ["Slowing the GPU", "Altering training data to implant a target behaviour", "Changing the network port", "Erasing logs"],
+        "correct": 1,
+        "explanation_fr": "On corrompt une partie du jeu d'entrainement pour implanter un biais ou une backdoor.",
+        "explanation_en": "You corrupt part of the training set to implant a bias or a backdoor."
+      },
+      {
+        "question_fr": "Comment prouver un empoisonnement reussi ?",
+        "question_en": "How do you prove successful poisoning?",
+        "options_fr": ["Montrer un changement de comportement observable a l'inference", "Augmenter la temperature", "Voir le modele s'entrainer", "Lire le code source"],
+        "options_en": ["Showing an observable behaviour change at inference", "Increasing temperature", "Watching the model train", "Reading the source code"],
+        "correct": 0,
+        "explanation_fr": "Sans changement observable au test (declencheur->sortie), il n'y a pas reussite.",
+        "explanation_en": "Without an observable change at test time (trigger->output), there is no success."
+      },
+      {
+        "question_fr": "Quelle defense reduit l'empoisonnement de donnees ?",
+        "question_en": "Which defense reduces data poisoning?",
+        "options_fr": ["Accepter toutes les donnees sans tri", "Valider la provenance et detecter les echantillons anormaux", "Desactiver la validation", "Augmenter la taille du batch"],
+        "options_en": ["Accepting all data without vetting", "Validating provenance and detecting anomalous samples", "Disabling validation", "Increasing batch size"],
+        "correct": 1,
+        "explanation_fr": "Tracabilite des sources, validation et detection d'anomalies dans le jeu d'entrainement.",
+        "explanation_en": "Source traceability, validation and anomaly detection in the training set."
+      }
+    ],
+    "pwnzzai-misinformation": [
+      {
+        "question_fr": "Quel est le risque cle de la desinformation (LLM09) ?",
+        "question_en": "What is the key risk of misinformation (LLM09)?",
+        "options_fr": ["La lenteur du modele", "La surconfiance de l'utilisateur dans une sortie fausse mais assuree", "Le manque de RAM", "Un mauvais theme"],
+        "options_en": ["Model slowness", "User overreliance on a false but confident output", "Lack of RAM", "A bad theme"],
+        "correct": 1,
+        "explanation_fr": "LLM09 lie l'hallucination a la surconfiance : l'utilisateur croit une affirmation fausse presentee comme verifiee.",
+        "explanation_en": "LLM09 ties hallucination to overreliance: the user believes a false claim presented as verified."
+      },
+      {
+        "question_fr": "Comment provoquer une affirmation fausse mais assuree ?",
+        "question_en": "How do you induce a false but confident claim?",
+        "options_fr": ["Question orientee, fausse premisse ou demande de fausses citations", "Eteindre le serveur", "Vider le cache", "Changer de port"],
+        "options_en": ["Leading question, false premise or request for fake citations", "Shutting down the server", "Clearing the cache", "Changing the port"],
+        "correct": 0,
+        "explanation_fr": "Le modele confirme souvent une premisse fausse ou invente des sources si on l'y pousse.",
+        "explanation_en": "The model often confirms a false premise or fabricates sources when pushed."
+      },
+      {
+        "question_fr": "Quelle parade limite la desinformation ?",
+        "question_en": "Which mitigation limits misinformation?",
+        "options_fr": ["Faire confiance aveuglement au modele", "Verification croisee, citation de sources et garde-fous RAG", "Augmenter la temperature", "Supprimer les avertissements"],
+        "options_en": ["Blindly trusting the model", "Cross-checking, source citation and RAG grounding", "Increasing temperature", "Removing warnings"],
+        "correct": 1,
+        "explanation_fr": "Ancrage sur sources verifiees, citations et verification humaine reduisent la surconfiance.",
+        "explanation_en": "Grounding on verified sources, citations and human verification reduce overreliance."
+      }
+    ],
+    "pwnzzai-dos": [
+      {
+        "question_fr": "Que decrit la consommation non bornee (LLM10) ?",
+        "question_en": "What does unbounded consumption (LLM10) describe?",
+        "options_fr": ["Un chiffrement faible", "Une requete provoquant une consommation de ressources disproportionnee", "Un mauvais mot de passe", "Une faute de frappe"],
+        "options_en": ["Weak encryption", "A request causing disproportionate resource consumption", "A wrong password", "A typo"],
+        "correct": 1,
+        "explanation_fr": "Sans limite d'entree/sortie, une requete peut epuiser temps, memoire ou cout (deni de service).",
+        "explanation_en": "Without input/output limits, one request can exhaust time, memory or cost (denial of service)."
+      },
+      {
+        "question_fr": "Quelle entree force une consommation excessive ?",
+        "question_en": "Which input forces excessive consumption?",
+        "options_fr": ["Une demande d'expansion recursive ou de sortie maximale ('repete indefiniment')", "Un simple bonjour", "Une question fermee oui/non", "Un clic sur un bouton"],
+        "options_en": ["A request for recursive expansion or maximal output ('repeat forever')", "A simple hello", "A closed yes/no question", "A button click"],
+        "correct": 0,
+        "explanation_fr": "Expansion recursive, sortie geante ou traitement imbrique imposent un cout disproportionne.",
+        "explanation_en": "Recursive expansion, huge output or nested processing impose a disproportionate cost."
+      },
+      {
+        "question_fr": "Quelle defense previent ce deni de service ?",
+        "question_en": "Which defense prevents this denial of service?",
+        "options_fr": ["Aucune limite", "Limites de taille d'entree, de longueur de sortie et quotas/rate limiting", "Desactiver le cache", "Augmenter la temperature"],
+        "options_en": ["No limits at all", "Input size limits, output length caps and quotas/rate limiting", "Disabling the cache", "Increasing temperature"],
+        "correct": 1,
+        "explanation_fr": "Bornage des entrees/sorties, quotas et rate limiting contiennent la consommation.",
+        "explanation_en": "Bounding inputs/outputs, quotas and rate limiting contain consumption."
+      }
+    ],
+    "pwnzzai-customer-support-safety": [
+      {
+        "question_fr": "Que vise le contournement de securite d'un bot de support ?",
+        "question_en": "What does bypassing a support bot's safety aim for?",
+        "options_fr": ["Lui faire produire un contenu toxique/interdit malgre la moderation", "Accelerer ses reponses", "Changer son avatar", "Reduire sa RAM"],
+        "options_en": ["Making it produce toxic/disallowed content despite moderation", "Speeding up its replies", "Changing its avatar", "Reducing its RAM"],
+        "correct": 0,
+        "explanation_fr": "Le but est de franchir le garde-fou de moderation pour faire emettre un contenu interdit.",
+        "explanation_en": "The goal is to defeat the moderation guardrail to make it emit disallowed content."
+      },
+      {
+        "question_fr": "Quelle technique permet d'evader un filtre de securite ?",
+        "question_en": "Which technique evades a safety filter?",
+        "options_fr": ["Obfuscation, jeu de role ou cadrage hypothetique", "Recompiler le modele", "Couper le wifi", "Vider le panier"],
+        "options_en": ["Obfuscation, role-play or hypothetical framing", "Recompiling the model", "Cutting the wifi", "Emptying the cart"],
+        "correct": 0,
+        "explanation_fr": "Obfuscation, jeu de role, hypothese, changement de langue ou decoupage sur plusieurs tours.",
+        "explanation_en": "Obfuscation, role-play, hypotheticals, language switching or splitting across turns."
+      },
+      {
+        "question_fr": "Quelle defense renforce un bot de support ?",
+        "question_en": "Which defense hardens a support bot?",
+        "options_fr": ["Aucune moderation", "Moderation entree/sortie, listes de refus et tests adversariaux", "Augmenter la temperature", "Desactiver les logs"],
+        "options_en": ["No moderation", "Input/output moderation, refusal lists and adversarial testing", "Increasing temperature", "Disabling logs"],
+        "correct": 1,
+        "explanation_fr": "Moderation des deux cotes, politiques de refus robustes et red-teaming continu.",
+        "explanation_en": "Two-sided moderation, robust refusal policies and continuous red-teaming."
+      }
+    ],
+    "pwnzzai-agentic-tools": [
+      {
+        "question_fr": "Comment un agent agentique traduit-il une demande en action ?",
+        "question_en": "How does an agentic agent turn a request into action?",
+        "options_fr": ["En appels d'outils (souvent SQL) generes a partir du langage naturel", "En signaux radio", "En paquets ICMP", "En cookies"],
+        "options_en": ["Into tool calls (often SQL) generated from natural language", "Into radio signals", "Into ICMP packets", "Into cookies"],
+        "correct": 0,
+        "explanation_fr": "L'agent transforme le langage naturel en appels d'outils ; un cadrage faible permet l'abus.",
+        "explanation_en": "The agent turns natural language into tool calls; weak scoping enables abuse."
+      },
+      {
+        "question_fr": "Que cherche a obtenir l'abus d'outils agentiques ?",
+        "question_en": "What does agentic tool abuse seek?",
+        "options_fr": ["Atteindre des donnees hors de sa portee legitime (autres users, tables systeme)", "Changer la langue", "Vider le cache", "Augmenter la RAM"],
+        "options_en": ["Reaching data beyond legitimate scope (other users, system tables)", "Changing language", "Clearing cache", "Adding RAM"],
+        "correct": 0,
+        "explanation_fr": "Le but est de pousser l'agent a renvoyer/effectuer un resultat hors-perimetre via ses outils.",
+        "explanation_en": "The goal is to push the agent to return/perform an out-of-scope result via its tools."
+      },
+      {
+        "question_fr": "Quelle parade limite l'abus d'outils agentiques ?",
+        "question_en": "Which mitigation limits agentic tool abuse?",
+        "options_fr": ["Donner a l'agent un acces SQL complet", "Scoper strictement les outils, parametrer les requetes et appliquer le privilege minimal", "Desactiver l'authentification", "Augmenter la temperature"],
+        "options_en": ["Giving the agent full SQL access", "Strictly scoping tools, parameterizing queries and applying least privilege", "Disabling authentication", "Increasing temperature"],
+        "correct": 1,
+        "explanation_fr": "Scoping strict des outils, requetes parametrees et privilege minimal cloisonnent l'agent.",
+        "explanation_en": "Strict tool scoping, parameterized queries and least privilege contain the agent."
+      }
+    ]
+  }
+}

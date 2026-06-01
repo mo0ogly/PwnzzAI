@@ -1,254 +1,30 @@
 /*
- * JuiceLab Coach for PwnzzAI — injected client sidebar.
+ * JuiceLab Coach for PwnzzAI — UI orchestrator (tabbed sidebar).
+ * Depends on: coach-i18n.js, coach-state.js, coach-api.js (loaded first).
  *
- * Loaded by the coach reverse proxy into every HTML page. It:
- *   - detects the current lab from the URL (reframe: lab-agnostic),
- *   - monkey-patches fetch / XHR to capture the student <-> vulnerable-LLM
- *     transcript in the browser (reframe 3),
- *   - offers adaptive hints (reframe 4) and an LLM-as-judge verdict
- *     (reframe 1) by calling the coach backend,
- *   - reports session_start / hint_revealed / challenge_solved /
- *     journal_filled events to the teacher dashboard via the backend.
- *
- * Pure vanilla JS, no framework. PwnzzAI source is never modified.
+ * Tabs: Briefing | Hints (5 graded levels) | Journal (before/after) |
+ *       Quiz (3 MCQ) | Progress (score, badges, dashboard).
+ * Pure vanilla JS. PwnzzAI source is never modified.
  */
 (function () {
   "use strict";
-
   if (window.__COACH_LOADED__) return;
   window.__COACH_LOADED__ = true;
 
-  var BASE = window.__COACH_BASE__ || "/__coach";
-  var STORE_KEY = "pwnzzai_coach_v1";
-  var QUEUE_KEY = "pwnzzai_coach_queue_v1";
-
-  // Request/response field names that typically carry the attack / reply.
-  var USER_FIELDS = ["message", "query", "prompt", "input", "question",
-    "text", "user_message", "msg", "content", "doc", "document"];
-  var BOT_FIELDS = ["response", "answer", "reply", "result", "output",
-    "message", "content", "text", "completion", "data"];
-
-  // ---- i18n ---------------------------------------------------------------
-  var I18N = {
-    fr: {
-      title: "Coach JuiceLab",
-      no_lab: "Aucun lab detecte sur cette page.",
-      goal: "Objectif",
-      captured: "Conversation capturee",
-      turns: "echange(s)",
-      hint: "Indice",
-      judge: "Verifier ma reussite",
-      journal: "Journal",
-      view: "Voir la conversation",
-      hide: "Masquer la conversation",
-      judging: "Evaluation en cours...",
-      hinting: "Generation de l'indice...",
-      solved: "Reussi",
-      partial: "Partiel",
-      notyet: "Pas encore reussi",
-      score: "Score",
-      hint_level: "Niveau",
-      journal_q: "Comment as-tu exploite cette faille ? Explique ta demarche.",
-      save: "Enregistrer",
-      journal_saved: "Journal enregistre",
-      empty: "Discute d'abord avec l'assistant du lab.",
-      dashboard_off: "Dashboard prof non configure (mode local).",
-      sent: "Envoye au dashboard",
-      queued: "Hors-ligne : sera renvoye",
-      unavailable: "Service coach indisponible (Ollama ?).",
-      you: "Toi",
-      bot: "Assistant",
-      cohort: "Cohorte",
-      reset: "Effacer la conversation"
-    },
-    en: {
-      title: "JuiceLab Coach",
-      no_lab: "No lab detected on this page.",
-      goal: "Goal",
-      captured: "Captured conversation",
-      turns: "turn(s)",
-      hint: "Hint",
-      judge: "Check my success",
-      journal: "Journal",
-      view: "View conversation",
-      hide: "Hide conversation",
-      judging: "Grading...",
-      hinting: "Generating hint...",
-      solved: "Solved",
-      partial: "Partial",
-      notyet: "Not solved yet",
-      score: "Score",
-      hint_level: "Level",
-      journal_q: "How did you exploit this flaw? Explain your approach.",
-      save: "Save",
-      journal_saved: "Journal saved",
-      empty: "Talk to the lab assistant first.",
-      dashboard_off: "Teacher dashboard not configured (local mode).",
-      sent: "Sent to dashboard",
-      queued: "Offline: will retry",
-      unavailable: "Coach service unavailable (Ollama?).",
-      you: "You",
-      bot: "Assistant",
-      cohort: "Cohort",
-      reset: "Clear conversation"
-    }
-  };
-
-  // ---- state --------------------------------------------------------------
-  var state = loadState();
-  var config = null;
-  var currentLab = null;
+  var I18n = window.CoachI18n, St = window.CoachState, Api = window.CoachApi;
+  var config = null, currentLab = null, costByLevel = { 1: 5, 2: 10, 3: 20, 4: 35, 5: 50 };
+  var activeTab = "briefing";
   var ui = {};
 
-  function loadState() {
-    try {
-      var raw = localStorage.getItem(STORE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* ignore */ }
-    return { token: uuid(), lang: "fr", transcripts: {}, hintLevel: {}, solved: {} };
-  }
-  function saveState() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
-  }
-  function t(key) { return (I18N[state.lang] || I18N.fr)[key] || key; }
-  function uuid() {
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-      var r = (Math.random() * 16) | 0, v = c === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+  function t(k) { return I18n.t(St.lang(), k); }
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
   }
 
-  // ---- transcript capture (fetch + XHR) -----------------------------------
-  function transcriptFor(key) {
-    if (!state.transcripts[key]) state.transcripts[key] = [];
-    return state.transcripts[key];
-  }
-  function pushTurn(role, content) {
-    if (!currentLab || !content) return;
-    var tr = transcriptFor(currentLab.key);
-    var text = String(content).trim();
-    if (!text) return;
-    tr.push({ role: role, content: text.slice(0, 8000), ts: Date.now() });
-    if (tr.length > 200) tr.splice(0, tr.length - 200);
-    saveState();
-    renderBody();
-  }
-  function pick(obj, fields) {
-    if (!obj || typeof obj !== "object") return null;
-    for (var i = 0; i < fields.length; i++) {
-      var v = obj[fields[i]];
-      if (typeof v === "string" && v.trim()) return v;
-    }
-    return null;
-  }
-  function captureRequest(bodyStr) {
-    if (!bodyStr) return;
-    try {
-      var obj = JSON.parse(bodyStr);
-      var msg = pick(obj, USER_FIELDS);
-      if (msg) pushTurn("user", msg);
-    } catch (e) { /* not json, skip */ }
-  }
-  function captureResponse(text) {
-    if (!text) return;
-    try {
-      var obj = JSON.parse(text);
-      var reply = pick(obj, BOT_FIELDS);
-      if (reply) { pushTurn("assistant", reply); return; }
-    } catch (e) { /* not json */ }
-  }
-  function isOwn(url) {
-    return typeof url === "string" && url.indexOf(BASE + "/") !== -1;
-  }
-
-  var origFetch = window.fetch;
-  if (origFetch) {
-    window.fetch = function (input, init) {
-      var url = (typeof input === "string") ? input : (input && input.url) || "";
-      var method = ((init && init.method) ||
-        (input && input.method) || "GET").toUpperCase();
-      if (method === "POST" && currentLab && !isOwn(url) && init && init.body &&
-        typeof init.body === "string") {
-        captureRequest(init.body);
-      }
-      return origFetch.apply(this, arguments).then(function (resp) {
-        if (method === "POST" && currentLab && !isOwn(url)) {
-          try {
-            resp.clone().text().then(captureResponse).catch(function () {});
-          } catch (e) { /* ignore */ }
-        }
-        return resp;
-      });
-    };
-  }
-
-  var XHR = window.XMLHttpRequest;
-  if (XHR) {
-    var origOpen = XHR.prototype.open;
-    var origSend = XHR.prototype.send;
-    XHR.prototype.open = function (method, url) {
-      this.__coach = { method: (method || "GET").toUpperCase(), url: url || "" };
-      return origOpen.apply(this, arguments);
-    };
-    XHR.prototype.send = function (body) {
-      var meta = this.__coach;
-      if (meta && meta.method === "POST" && currentLab && !isOwn(meta.url) &&
-        typeof body === "string") {
-        captureRequest(body);
-      }
-      if (meta) {
-        var self = this;
-        this.addEventListener("load", function () {
-          if (meta.method === "POST" && currentLab && !isOwn(meta.url)) {
-            try { captureResponse(self.responseText); } catch (e) { /* ignore */ }
-          }
-        });
-      }
-      return origSend.apply(this, arguments);
-    };
-  }
-
-  // ---- backend calls ------------------------------------------------------
-  function api(path, payload) {
-    return origFetch(BASE + path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); });
-  }
-
-  function sendEvent(type, challengeKey, data) {
-    var ev = {
-      event_type: type, challenge_key: challengeKey, data: data || {},
-      student_token: state.token, client_timestamp: new Date().toISOString()
-    };
-    return api("/event", ev).then(function (res) {
-      if (!res.body || !res.body.ok) enqueue(ev);
-      return res.body;
-    }).catch(function () { enqueue(ev); return { ok: false, queued: true }; });
-  }
-  function enqueue(ev) {
-    var q = loadQueue(); q.push(ev); saveQueue(q.slice(-300));
-  }
-  function loadQueue() {
-    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]"); } catch (e) { return []; }
-  }
-  function saveQueue(q) {
-    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch (e) { /* ignore */ }
-  }
-  function flushQueue() {
-    var q = loadQueue();
-    if (!q.length) return;
-    saveQueue([]);
-    q.forEach(function (ev) {
-      api("/event", ev).then(function (res) {
-        if (!res.body || !res.body.ok) enqueue(ev);
-      }).catch(function () { enqueue(ev); });
-    });
-  }
-
-  // ---- lab detection ------------------------------------------------------
+  // ---- lab detection ----
   function detectLab() {
     if (!config || !config.labs) return null;
     var path = window.location.pathname;
@@ -257,234 +33,378 @@
     }
     return null;
   }
+  function labName(lab) { return St.lang() === "fr" ? lab.name_fr : lab.name_en; }
 
-  // ---- UI -----------------------------------------------------------------
-  function el(tag, cls, txt) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (txt != null) e.textContent = txt;
-    return e;
-  }
-
-  function buildUI() {
-    var launcher = el("button", "coach-launcher");
+  // ---- shell ----
+  function buildShell() {
+    var launcher = el("button", "coach-launcher", "JL");
     launcher.setAttribute("aria-label", t("title"));
-    launcher.textContent = "JL";
     launcher.addEventListener("click", togglePanel);
 
     var panel = el("aside", "coach-panel coach-hidden");
-
     var header = el("div", "coach-header");
-    var titleWrap = el("div", "coach-title-wrap");
+    var tw = el("div", "coach-title-wrap");
     ui.title = el("span", "coach-title", t("title"));
     ui.sub = el("span", "coach-sub", "");
-    titleWrap.appendChild(ui.title); titleWrap.appendChild(ui.sub);
-    var langBtn = el("button", "coach-lang", state.lang.toUpperCase());
-    langBtn.addEventListener("click", toggleLang);
+    tw.appendChild(ui.title); tw.appendChild(ui.sub);
+    ui.langBtn = el("button", "coach-lang", St.lang().toUpperCase());
+    ui.langBtn.addEventListener("click", toggleLang);
     var closeBtn = el("button", "coach-close", "×");
     closeBtn.addEventListener("click", togglePanel);
-    header.appendChild(titleWrap); header.appendChild(langBtn); header.appendChild(closeBtn);
+    header.appendChild(tw); header.appendChild(ui.langBtn); header.appendChild(closeBtn);
 
-    ui.content = el("div", "coach-content");
+    ui.tabs = el("div", "coach-tabs");
+    ui.body = el("div", "coach-content");
 
-    panel.appendChild(header);
-    panel.appendChild(ui.content);
-
+    panel.appendChild(header); panel.appendChild(ui.tabs); panel.appendChild(ui.body);
     document.body.appendChild(launcher);
     document.body.appendChild(panel);
-    ui.launcher = launcher; ui.panel = panel; ui.langBtn = langBtn;
-    renderBody();
-    // Deep-link: a URL ending in #coach opens the panel on load, so a
-    // teacher can share a link that lands the student straight on the coach.
+    ui.launcher = launcher; ui.panel = panel;
+
+    renderTabs();
+    render();
     if ((window.location.hash || "").toLowerCase().indexOf("coach") !== -1) {
       panel.classList.remove("coach-hidden");
     }
   }
-
   function togglePanel() { ui.panel.classList.toggle("coach-hidden"); }
   function toggleLang() {
-    state.lang = state.lang === "fr" ? "en" : "fr"; saveState();
-    ui.langBtn.textContent = state.lang.toUpperCase();
+    St.setLang(St.lang() === "fr" ? "en" : "fr");
+    ui.langBtn.textContent = St.lang().toUpperCase();
     ui.title.textContent = t("title");
-    renderBody();
+    renderTabs(); render();
   }
 
-  function renderBody() {
-    if (!ui.content) return;
-    var c = ui.content; c.innerHTML = "";
+  var TABS = ["briefing", "hints", "journal", "quiz", "progress"];
+  function renderTabs() {
+    if (!ui.tabs) return;
+    ui.tabs.innerHTML = "";
+    if (!currentLab) return;
+    TABS.forEach(function (id) {
+      var b = el("button", "coach-tab" + (id === activeTab ? " coach-tab-active" : ""),
+        t("tab_" + id));
+      b.addEventListener("click", function () { activeTab = id; renderTabs(); render(); });
+      ui.tabs.appendChild(b);
+    });
+  }
 
+  function render() {
+    if (!ui.body) return;
+    var c = ui.body; c.innerHTML = "";
     if (!currentLab) {
-      ui.sub.textContent = "";
       c.appendChild(el("p", "coach-muted", t("no_lab")));
-      appendCohortLine(c);
+      renderProgress(c);   // still show global progress + dashboard line
       return;
     }
     ui.sub.textContent = currentLab.owasp || "";
-
-    var name = state.lang === "fr" ? currentLab.name_fr : currentLab.name_en;
-    c.appendChild(el("h3", "coach-lab-name", name));
-
-    var goalWrap = el("div", "coach-goal");
-    goalWrap.appendChild(el("span", "coach-label", t("goal")));
-    goalWrap.appendChild(el("p", null,
-      state.lang === "fr" ? currentLab.goal_fr : currentLab.goal_en));
-    c.appendChild(goalWrap);
-
-    // verdict banner if previously solved
-    if (state.solved[currentLab.key]) {
-      var banner = el("div", "coach-verdict coach-ok",
-        t("solved") + " ✓");
-      c.appendChild(banner);
-    }
-
-    // transcript summary
-    var tr = transcriptFor(currentLab.key);
-    var sum = el("div", "coach-summary");
-    sum.appendChild(el("span", "coach-label", t("captured")));
-    sum.appendChild(el("span", "coach-count", tr.length + " " + t("turns")));
-    c.appendChild(sum);
-
-    // actions
-    var actions = el("div", "coach-actions");
-    var hintBtn = el("button", "coach-btn", t("hint"));
-    hintBtn.addEventListener("click", onHint);
-    var judgeBtn = el("button", "coach-btn coach-btn-primary", t("judge"));
-    judgeBtn.addEventListener("click", onJudge);
-    var viewBtn = el("button", "coach-btn coach-btn-ghost", t("view"));
-    viewBtn.addEventListener("click", toggleTranscript);
-    actions.appendChild(hintBtn); actions.appendChild(judgeBtn); actions.appendChild(viewBtn);
-    c.appendChild(actions);
-
-    ui.status = el("div", "coach-status");
-    c.appendChild(ui.status);
-
-    ui.transcriptBox = el("div", "coach-transcript coach-hidden");
-    renderTranscript();
-    c.appendChild(ui.transcriptBox);
-
-    // journal
-    var jWrap = el("div", "coach-journal");
-    jWrap.appendChild(el("span", "coach-label", t("journal")));
-    var ta = el("textarea", "coach-textarea");
-    ta.placeholder = t("journal_q");
-    ta.value = (state.journal && state.journal[currentLab.key]) || "";
-    var saveBtn = el("button", "coach-btn", t("save"));
-    saveBtn.addEventListener("click", function () { onJournal(ta.value); });
-    jWrap.appendChild(ta); jWrap.appendChild(saveBtn);
-    c.appendChild(jWrap);
-
-    appendCohortLine(c);
+    if (activeTab === "briefing") renderBriefing(c);
+    else if (activeTab === "hints") renderHints(c);
+    else if (activeTab === "journal") renderJournal(c);
+    else if (activeTab === "quiz") renderQuiz(c);
+    else renderProgress(c);
   }
 
-  function appendCohortLine(c) {
-    var line = el("div", "coach-cohort");
-    if (config && config.dashboard_configured) {
-      line.textContent = t("cohort") + ": " + (config.cohort_id || "-");
-    } else {
-      line.textContent = t("dashboard_off");
-    }
-    c.appendChild(line);
-  }
-
-  function renderTranscript() {
-    if (!ui.transcriptBox) return;
-    ui.transcriptBox.innerHTML = "";
-    var tr = transcriptFor(currentLab.key);
-    if (!tr.length) {
-      ui.transcriptBox.appendChild(el("p", "coach-muted", t("empty")));
-      return;
-    }
-    tr.forEach(function (turn) {
-      var row = el("div", "coach-turn coach-turn-" + turn.role);
-      row.appendChild(el("span", "coach-turn-role",
-        turn.role === "user" ? t("you") : t("bot")));
-      row.appendChild(el("p", "coach-turn-text", turn.content));
-      ui.transcriptBox.appendChild(row);
-    });
-    var resetBtn = el("button", "coach-btn coach-btn-ghost", t("reset"));
-    resetBtn.addEventListener("click", function () {
-      state.transcripts[currentLab.key] = []; saveState(); renderBody();
-    });
-    ui.transcriptBox.appendChild(resetBtn);
-  }
-  function toggleTranscript() {
-    if (ui.transcriptBox) ui.transcriptBox.classList.toggle("coach-hidden");
-  }
-
-  function setStatus(msg, kind) {
-    if (!ui.status) return;
-    ui.status.textContent = msg || "";
-    ui.status.className = "coach-status" + (kind ? " coach-" + kind : "");
-  }
-
-  // ---- actions ------------------------------------------------------------
-  function onHint() {
-    var lvl = (state.hintLevel[currentLab.key] || 0) + 1;
-    if (lvl > 3) lvl = 3;
-    state.hintLevel[currentLab.key] = lvl; saveState();
-    setStatus(t("hinting"), "muted");
-    api("/hint", {
-      lab_key: currentLab.key, level: lvl, lang: state.lang,
-      transcript: transcriptFor(currentLab.key)
-    }).then(function (res) {
-      if (!res.ok || !res.body || res.body.error) { setStatus(t("unavailable"), "warn"); return; }
-      setStatus("");
-      showHint(lvl, res.body.hint);
-      sendEvent("hint_revealed", currentLab.key, {
-        hint_level: lvl, student_email: studentName()
+  // ---- briefing tab ----
+  function renderBriefing(c) {
+    c.appendChild(el("h3", "coach-lab-name", labName(currentLab)));
+    var g = el("div", "coach-block");
+    g.appendChild(el("span", "coach-label", t("mission")));
+    g.appendChild(el("p", null, St.lang() === "fr" ? currentLab.goal_fr : currentLab.goal_en));
+    c.appendChild(g);
+    var concepts = currentLab.concepts || [];
+    if (concepts.length) {
+      c.appendChild(el("span", "coach-label", t("concepts")));
+      concepts.forEach(function (cp) {
+        var card = el("div", "coach-concept");
+        card.appendChild(el("strong", null, St.lang() === "fr" ? cp.title_fr : cp.title_en));
+        card.appendChild(el("p", null, St.lang() === "fr" ? cp.body_fr : cp.body_en));
+        c.appendChild(card);
       });
-    }).catch(function () { setStatus(t("unavailable"), "warn"); });
-  }
-  function showHint(lvl, text) {
-    var box = el("div", "coach-hint");
-    box.appendChild(el("span", "coach-hint-lvl", t("hint_level") + " " + lvl + "/3"));
-    box.appendChild(el("p", null, text));
-    ui.status.parentNode.insertBefore(box, ui.status.nextSibling);
+    }
   }
 
-  function onJudge() {
-    var tr = transcriptFor(currentLab.key);
-    if (!tr.length) { setStatus(t("empty"), "warn"); return; }
-    setStatus(t("judging"), "muted");
-    api("/judge", { lab_key: currentLab.key, transcript: tr })
+  // ---- hints tab ----
+  function renderHints(c) {
+    var ch = St.challenge(currentLab.key);
+    var head = el("div", "coach-summary");
+    head.appendChild(el("span", "coach-label", t("score_lab")));
+    head.appendChild(el("span", "coach-count", St.scoreFor(currentLab.key, costByLevel) + " / 100"));
+    c.appendChild(head);
+
+    for (var lvl = 1; lvl <= 5; lvl++) {
+      (function (level) {
+        var revealed = ch.hints.indexOf(level) !== -1;
+        var row = el("div", "coach-hint-row" + (revealed ? " coach-hint-done" : ""));
+        var top = el("div", "coach-hint-top");
+        top.appendChild(el("span", "coach-hint-lvl", t("hint_level") + " " + level + "/5"));
+        top.appendChild(el("span", "coach-hint-cost", "-" + costByLevel[level] + "%"));
+        row.appendChild(top);
+        if (revealed && ch["hint_text_" + level]) {
+          row.appendChild(el("p", "coach-hint-text", ch["hint_text_" + level]));
+        } else if (!revealed) {
+          var next = St.nextHintLevel(currentLab.key);
+          var btn = el("button", "coach-btn", t("hint_reveal"));
+          if (level !== next) { btn.disabled = true; btn.title = t("hint_locked"); }
+          btn.addEventListener("click", function () { revealHint(level); });
+          row.appendChild(btn);
+        }
+        c.appendChild(row);
+      })(lvl);
+    }
+    ui.hintStatus = el("div", "coach-status");
+    c.appendChild(ui.hintStatus);
+  }
+
+  function revealHint(level) {
+    if (ui.hintStatus) { ui.hintStatus.textContent = t("hinting"); ui.hintStatus.className = "coach-status coach-muted"; }
+    Api.hint(currentLab.key, level, St.lang(), Api.transcript(currentLab.key))
       .then(function (res) {
         if (!res.ok || !res.body || res.body.error) {
-          setStatus((res.body && res.body.reason) || t("unavailable"), "warn"); return;
+          if (ui.hintStatus) { ui.hintStatus.textContent = t("unavailable"); ui.hintStatus.className = "coach-status coach-warn"; }
+          return;
         }
-        setStatus("");
-        showVerdict(res.body);
-        if (res.body.success) {
-          state.solved[currentLab.key] = true; saveState();
-          sendEvent("challenge_solved", currentLab.key, {
-            score: res.body.score, verdict: res.body.verdict,
-            rationale: res.body.reason, judged_by: "llm",
-            student_email: studentName()
-          });
-        }
-      }).catch(function () { setStatus(t("unavailable"), "warn"); });
-  }
-  function showVerdict(v) {
-    var old = ui.content.querySelector(".coach-verdict-live");
-    if (old) old.remove();
-    var kind = v.success ? "ok" : (v.partial ? "warn" : "bad");
-    var label = v.success ? t("solved") : (v.partial ? t("partial") : t("notyet"));
-    var box = el("div", "coach-verdict coach-verdict-live coach-" + kind);
-    box.appendChild(el("strong", null, label + "  —  " + t("score") + " " + v.score + "/100"));
-    if (v.reason) box.appendChild(el("p", "coach-verdict-reason", v.reason));
-    ui.status.parentNode.insertBefore(box, ui.status.nextSibling);
+        St.revealHint(currentLab.key, level);
+        St.challenge(currentLab.key)["hint_text_" + level] = res.body.hint;
+        Api.sendEvent("hint_revealed", currentLab.key, {
+          level: "N" + level, cost_pct: res.body.cost_pct,
+          score_after: St.scoreFor(currentLab.key, costByLevel),
+          student_email: studentName()
+        });
+        render();
+      })
+      .catch(function () {
+        if (ui.hintStatus) { ui.hintStatus.textContent = t("unavailable"); ui.hintStatus.className = "coach-status coach-warn"; }
+      });
   }
 
-  function onJournal(text) {
-    if (!state.journal) state.journal = {};
-    state.journal[currentLab.key] = text; saveState();
-    setStatus(t("journal_saved"), "ok");
-    sendEvent("journal_filled", currentLab.key, {
-      length: text.length, after: text.slice(0, 4000),
-      student_email: studentName()
+  // ---- journal tab ----
+  function renderJournal(c) {
+    var ch = St.challenge(currentLab.key);
+    [["before", "journal_before", "journal_before_ph"],
+     ["after", "journal_after", "journal_after_ph"]].forEach(function (spec) {
+      var phase = spec[0];
+      var wrap = el("div", "coach-block");
+      wrap.appendChild(el("span", "coach-label", t(spec[1])));
+      var ta = el("textarea", "coach-textarea");
+      ta.placeholder = t(spec[2]);
+      ta.value = ch.journal[phase] || "";
+      var meta = el("div", "coach-journal-meta");
+      var wc = el("span", "coach-muted", wordCount(ta.value) + " " + t("words"));
+      ta.addEventListener("input", function () { wc.textContent = wordCount(ta.value) + " " + t("words"); });
+      var btn = el("button", "coach-btn", t("save"));
+      var done = el("span", "coach-ok", "");
+      btn.addEventListener("click", function () {
+        St.setJournal(currentLab.key, phase, ta.value);
+        done.textContent = " " + t("saved");
+        if (phase === "after") {
+          Api.sendEvent("journal_filled", currentLab.key, {
+            length: ta.value.length, after: ta.value.slice(0, 4000),
+            student_email: studentName()
+          });
+          maybeAwardBadges();
+        }
+      });
+      meta.appendChild(wc); meta.appendChild(btn); meta.appendChild(done);
+      wrap.appendChild(ta); wrap.appendChild(meta);
+      c.appendChild(wrap);
+    });
+  }
+  function wordCount(s) { return (s || "").trim().split(/\s+/).filter(Boolean).length; }
+
+  // ---- quiz tab ----
+  function renderQuiz(c) {
+    if ((currentLab.quiz_count || 0) === 0) { c.appendChild(el("p", "coach-muted", "—")); return; }
+    if (!ui.quizCache || ui.quizCache.key !== currentLab.key) {
+      c.appendChild(el("p", "coach-muted", "..."));
+      Api.quizQuestions(currentLab.key).then(function (res) {
+        if (res.ok && res.body && res.body.questions) {
+          ui.quizCache = { key: currentLab.key, questions: res.body.questions, answers: [] };
+          if (activeTab === "quiz") render();
+        }
+      });
+      return;
+    }
+    ui.quizCache.questions.forEach(function (q, qi) {
+      var block = el("div", "coach-quiz-q");
+      block.appendChild(el("p", "coach-quiz-question",
+        (qi + 1) + ". " + (St.lang() === "fr" ? q.question_fr : q.question_en)));
+      var opts = St.lang() === "fr" ? q.options_fr : q.options_en;
+      opts.forEach(function (opt, oi) {
+        var lab = el("label", "coach-quiz-opt");
+        var radio = el("input");
+        radio.type = "radio"; radio.name = "q" + qi; radio.value = oi;
+        if (ui.quizCache.answers[qi] === oi) radio.checked = true;
+        radio.addEventListener("change", function () { ui.quizCache.answers[qi] = oi; });
+        lab.appendChild(radio); lab.appendChild(el("span", null, opt));
+        block.appendChild(lab);
+      });
+      c.appendChild(block);
+    });
+    ui.quizStatus = el("div", "coach-status");
+    var submit = el("button", "coach-btn coach-btn-primary", t("quiz_submit"));
+    submit.addEventListener("click", submitQuiz);
+    c.appendChild(submit); c.appendChild(ui.quizStatus);
+    if (ui.quizCache.result) renderQuizResult(c, ui.quizCache.result);
+  }
+
+  function submitQuiz() {
+    var cache = ui.quizCache;
+    if (!cache) return;
+    if (cache.answers.filter(function (a) { return a != null; }).length < cache.questions.length) {
+      ui.quizStatus.textContent = t("quiz_pick"); ui.quizStatus.className = "coach-status coach-warn"; return;
+    }
+    Api.quizScore(currentLab.key, cache.answers, St.lang()).then(function (res) {
+      if (!res.ok || !res.body) { ui.quizStatus.textContent = t("unavailable"); ui.quizStatus.className = "coach-status coach-warn"; return; }
+      cache.result = res.body;
+      St.setQuizScore(currentLab.key, res.body.score);
+      Api.sendEvent("quiz_completed", currentLab.key, {
+        score: res.body.score, correct: res.body.correct_count, total: res.body.total,
+        student_email: studentName()
+      });
+      render();
+    }).catch(function () { ui.quizStatus.textContent = t("unavailable"); ui.quizStatus.className = "coach-status coach-warn"; });
+  }
+  function renderQuizResult(c, r) {
+    var box = el("div", "coach-verdict coach-" + (r.score >= 67 ? "ok" : (r.score >= 34 ? "warn" : "bad")));
+    box.appendChild(el("strong", null, t("quiz_score") + " " + r.score + "/100 (" + r.correct_count + "/" + r.total + ")"));
+    (r.by_question || []).forEach(function (q, i) {
+      var line = el("p", "coach-quiz-explain");
+      line.appendChild(el("span", q.ok ? "coach-ok" : "coach-bad",
+        (i + 1) + ". " + (q.ok ? t("quiz_correct") : t("quiz_wrong")) + " — "));
+      line.appendChild(document.createTextNode(q.explanation || ""));
+      box.appendChild(line);
+    });
+    var redo = el("button", "coach-btn coach-btn-ghost", t("quiz_redo"));
+    redo.addEventListener("click", function () { ui.quizCache.result = null; ui.quizCache.answers = []; render(); });
+    box.appendChild(redo);
+    c.appendChild(box);
+  }
+
+  // ---- progress tab (student dashboard) ----
+  function renderProgress(c) {
+    if (currentLab) {
+      var conv = el("div", "coach-summary");
+      conv.appendChild(el("span", "coach-label", t("captured")));
+      conv.appendChild(el("span", "coach-count", Api.transcript(currentLab.key).length + " " + t("turns")));
+      c.appendChild(conv);
+      var actions = el("div", "coach-actions");
+      var judgeBtn = el("button", "coach-btn coach-btn-primary", t("judge"));
+      judgeBtn.addEventListener("click", runJudge);
+      var viewBtn = el("button", "coach-btn coach-btn-ghost", t("view"));
+      viewBtn.addEventListener("click", function () { toggleConv(c); });
+      actions.appendChild(judgeBtn); actions.appendChild(viewBtn);
+      c.appendChild(actions);
+      ui.judgeStatus = el("div", "coach-status"); c.appendChild(ui.judgeStatus);
+      ui.convBox = el("div", "coach-transcript coach-hidden"); c.appendChild(ui.convBox);
+      var ch = St.challenge(currentLab.key);
+      if (ch.solved) {
+        var v = el("div", "coach-verdict coach-ok");
+        v.appendChild(el("strong", null, t("solved") + " ✓  —  " + t("score") + " " + St.scoreFor(currentLab.key, costByLevel) + "/100"));
+        c.appendChild(v);
+      }
+    }
+
+    var sum = St.summary(costByLevel);
+    var grid = el("div", "coach-stats");
+    grid.appendChild(stat(sum.solved + (config ? " / " + config.labs.length : ""), t("labs_solved")));
+    grid.appendChild(stat(sum.avg + "/100", t("total_score")));
+    c.appendChild(el("span", "coach-label", t("progress_title")));
+    c.appendChild(grid);
+
+    var chs = St.raw().challenges;
+    var keys = Object.keys(chs);
+    if (!keys.length) {
+      c.appendChild(el("p", "coach-muted", t("progress_none")));
+    } else {
+      var list = el("div", "coach-lab-list");
+      (config ? config.labs : []).forEach(function (lab) {
+        if (!chs[lab.key]) return;
+        var lch = chs[lab.key];
+        var row = el("div", "coach-lab-row");
+        row.appendChild(el("span", "coach-lab-row-name", labName(lab)));
+        row.appendChild(el("span", "coach-chip " + (lch.solved ? "coach-chip-ok" : "coach-chip-pending"),
+          lch.solved ? t("solved") : (lch.hints.length + " " + t("hints_consumed"))));
+        list.appendChild(row);
+      });
+      c.appendChild(list);
+    }
+
+    c.appendChild(el("span", "coach-label", t("badges")));
+    var earned = St.badgesEarned();
+    var bgrid = el("div", "coach-badges");
+    I18n.badges.forEach(function (b) {
+      var has = earned.indexOf(b.id) !== -1;
+      var card = el("div", "coach-badge coach-badge-" + b.tier + (has ? " coach-badge-on" : " coach-badge-off"));
+      card.appendChild(el("strong", null, St.lang() === "fr" ? b.label_fr : b.label_en));
+      card.appendChild(el("p", null, has ? (St.lang() === "fr" ? b.desc_fr : b.desc_en) : t("badge_locked")));
+      bgrid.appendChild(card);
+    });
+    c.appendChild(bgrid);
+
+    var line = el("div", "coach-cohort");
+    if (config && config.dashboard_configured) line.textContent = t("cohort") + ": " + (config.cohort_id || "-");
+    else line.textContent = t("dashboard_off");
+    c.appendChild(line);
+  }
+  function stat(value, label) {
+    var s = el("div", "coach-stat");
+    s.appendChild(el("span", "coach-stat-val", value));
+    s.appendChild(el("span", "coach-stat-lbl", label));
+    return s;
+  }
+  function toggleConv(c) {
+    if (!ui.convBox) return;
+    ui.convBox.classList.toggle("coach-hidden");
+    if (ui.convBox.classList.contains("coach-hidden")) return;
+    ui.convBox.innerHTML = "";
+    var tr = Api.transcript(currentLab.key);
+    if (!tr.length) { ui.convBox.appendChild(el("p", "coach-muted", t("empty"))); return; }
+    tr.forEach(function (turn) {
+      var row = el("div", "coach-turn coach-turn-" + turn.role);
+      row.appendChild(el("span", "coach-turn-role", turn.role === "user" ? t("you") : t("bot")));
+      row.appendChild(el("p", "coach-turn-text", turn.content));
+      ui.convBox.appendChild(row);
+    });
+    var reset = el("button", "coach-btn coach-btn-ghost", t("reset_conv"));
+    reset.addEventListener("click", function () { Api.clearTranscript(currentLab.key); render(); });
+    ui.convBox.appendChild(reset);
+  }
+
+  function runJudge() {
+    var tr = Api.transcript(currentLab.key);
+    if (!tr.length) { ui.judgeStatus.textContent = t("empty"); ui.judgeStatus.className = "coach-status coach-warn"; return; }
+    ui.judgeStatus.textContent = t("judging"); ui.judgeStatus.className = "coach-status coach-muted";
+    Api.judge(currentLab.key, tr).then(function (res) {
+      if (!res.ok || !res.body || res.body.error) {
+        ui.judgeStatus.textContent = (res.body && res.body.reason) || t("unavailable");
+        ui.judgeStatus.className = "coach-status coach-warn"; return;
+      }
+      ui.judgeStatus.textContent = "";
+      var v = res.body;
+      var kind = v.success ? "ok" : (v.partial ? "warn" : "bad");
+      var label = v.success ? t("solved") : (v.partial ? t("partial") : t("notyet"));
+      var box = el("div", "coach-verdict coach-" + kind);
+      box.appendChild(el("strong", null, label + "  —  " + t("score") + " " + v.score + "/100"));
+      if (v.reason) box.appendChild(el("p", "coach-verdict-reason", v.reason));
+      ui.judgeStatus.parentNode.insertBefore(box, ui.judgeStatus.nextSibling);
+      if (v.success) {
+        St.setSolved(currentLab.key, v.verdict);
+        Api.sendEvent("challenge_solved", currentLab.key, {
+          score: St.scoreFor(currentLab.key, costByLevel), verdict: v.verdict,
+          rationale: v.reason, judged_by: "llm", student_email: studentName()
+        });
+        maybeAwardBadges();
+      }
+    }).catch(function () { ui.judgeStatus.textContent = t("unavailable"); ui.judgeStatus.className = "coach-status coach-warn"; });
+  }
+
+  function maybeAwardBadges() {
+    var newly = St.reevaluateBadges();
+    newly.forEach(function (id) {
+      Api.sendEvent("badge_earned", currentLab ? currentLab.key : null, { badge: id, student_email: studentName() });
     });
   }
 
-  // Best-effort student display name from the PwnzzAI navbar (alice/bob).
   function studentName() {
     try {
       var nav = document.querySelector(".navbar, nav");
@@ -494,29 +414,27 @@
     } catch (e) { return ""; }
   }
 
-  // ---- boot ---------------------------------------------------------------
+  // ---- boot ----
   function boot() {
-    origFetch(BASE + "/config").then(function (r) { return r.json(); })
-      .then(function (cfg) {
-        config = cfg;
-        // server gives no default language; honour a ?lang or keep stored
-        currentLab = detectLab();
-        buildUI();
-        flushQueue();
-        sendEvent("session_start", currentLab ? currentLab.key : null, {
-          path: window.location.pathname, student_email: studentName()
-        });
-      })
-      .catch(function () {
-        // even without config, render an empty panel so the student sees it
-        config = { labs: [], dashboard_configured: false };
-        buildUI();
+    Api.installCapture();
+    Api.config().then(function (res) {
+      config = res.body || { labs: [] };
+      if (config.hint_cost_by_level) costByLevel = config.hint_cost_by_level;
+      window.__COACH_TOTAL_LABS__ = (config.labs || []).length || 13;
+      currentLab = detectLab();
+      Api.setCurrentLab(currentLab ? currentLab.key : null);
+      Api.onTurn(function () { if (activeTab === "progress" || !currentLab) render(); });
+      buildShell();
+      Api.flushQueue();
+      Api.sendEvent("session_start", currentLab ? currentLab.key : null, {
+        path: window.location.pathname, student_email: studentName()
       });
+    }).catch(function () {
+      config = { labs: [], dashboard_configured: false };
+      buildShell();
+    });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();

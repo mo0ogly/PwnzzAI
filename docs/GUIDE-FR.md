@@ -7,17 +7,30 @@ Le **Coach JuiceLab** transforme [OWASP PwnzzAI](https://github.com/OWASP/PwnzzA
 LLM — en un TD guidé et suivi à distance, **sans modifier une seule ligne du
 produit OWASP**.
 
-Il ajoute quatre choses à PwnzzAI :
+Il apporte à PwnzzAI la **parité de fonctionnalités élève de JuiceLab**, via
+une sidebar à onglets injectée dans le navigateur :
 
-1. **Un juge automatique** (LLM-as-judge) qui lit la conversation de l'élève
-   avec l'assistant vulnérable et décide si l'objectif du lab est réellement
-   atteint, avec un score de 0 à 100.
-2. **Des indices adaptatifs** générés par le modèle local en fonction des
-   tentatives ratées de l'élève, gradués sur 3 niveaux, en FR ou EN.
-3. **La capture de la conversation d'attaque** dans le navigateur, pour que
-   l'élève (et le prof) voient le déroulé complet de l'exploitation.
-4. **La remontée vers le dashboard prof JuiceLab** : un TD PwnzzAI apparaît
-   dans la même matrice de cohorte que Juice Shop.
+1. **Briefing** : mission + 2-3 concepts pédagogiques par lab (bilingue),
+   ancrés sur OWASP LLM Top 10.
+2. **Indices gradués** : 5 niveaux (N1-N5) avec coût croissant 5/10/20/35/50 %,
+   révélation progressive (N+1 exige N), **pénalité de score**. Le contenu de
+   chaque indice est **généré par le modèle local**, adapté au lab et aux
+   tentatives ratées de l'élève.
+3. **Journal** before/after : l'élève écrit son hypothèse avant, sa
+   compréhension après.
+4. **Quiz** : 3 QCM 4-options bilingues par lab, corrigés côté serveur avec
+   explications.
+5. **Juge automatique** (LLM-as-judge) : lit la conversation d'attaque
+   (capturée dans le navigateur) et décide si l'objectif est atteint, avec
+   verdict + score + justification.
+6. **Onglet Progression** (dashboard élève) : score par lab, indices
+   consommés, badges (4 tiers), score moyen.
+7. **Remontée vers le dashboard prof JuiceLab** : un TD PwnzzAI apparaît dans
+   la même matrice de cohorte que Juice Shop (events `session_start`,
+   `hint_revealed`, `challenge_solved`, `journal_filled`, `quiz_completed`,
+   `badge_earned`).
+
+**Scoring** (identique à JuiceLab) : `score = max(50, 100 − Σ coûts d'indices)`.
 
 ---
 
@@ -116,27 +129,35 @@ docker compose up -d pwnzzai-coach
 1. Ouvrir `http://localhost:8095` et naviguer vers un lab (ex. *Direct Prompt
    Injection*).
 2. Un bouton rond violet **« JL »** apparaît en bas à droite. Cliquer dessus
-   ouvre le **panneau coach**.
-3. Le panneau affiche :
-   - le **nom du lab** et sa **catégorie OWASP** (ex. LLM01) ;
-   - l'**objectif** de l'exploitation, en français ou anglais (bouton FR/EN) ;
-   - un compteur **« conversation capturée »** qui augmente à chaque échange
-     avec l'assistant vulnérable ;
-   - les boutons **Indice**, **Vérifier ma réussite**, **Voir la
-     conversation** ;
-   - un **journal** où l'élève explique sa démarche.
-4. L'élève attaque l'assistant comme d'habitude (le coach n'interfère pas).
-5. Bloqué ? Le bouton **Indice** donne un conseil adapté à ses tentatives
-   ratées (3 niveaux, du simple nudge à l'exemple quasi complet).
-6. Quand il pense avoir réussi, **Vérifier ma réussite** soumet la
-   conversation au juge, qui répond *Réussi / Partiel / Pas encore* + un score
-   + une justification.
+   ouvre le **panneau coach à onglets** (bouton FR/EN pour la langue).
+3. Les **5 onglets** :
+   - **Briefing** : mission + concepts pédagogiques du lab.
+   - **Indices** : 5 niveaux N1-N5 (coût 5/10/20/35/50 %). On ne peut révéler
+     N+1 qu'après N. Chaque indice révélé fait baisser le **score du lab**
+     (plancher 50). Le contenu s'adapte aux tentatives ratées.
+   - **Journal** : *avant* (hypothèse) et *après* (compréhension), avec compteur
+     de mots.
+   - **Quiz** : 3 QCM ; après validation, score + explications par question.
+   - **Progression** : bouton **Vérifier ma réussite** (juge), conversation
+     capturée, score par lab, badges, score moyen.
+4. L'élève attaque l'assistant comme d'habitude (le coach n'interfère pas) ;
+   la conversation est capturée automatiquement.
+5. Bloqué ? L'onglet **Indices** révèle un conseil gradué adapté à ses
+   tentatives (N1 = simple déclic, N5 = exemple quasi complet).
+6. Quand il pense avoir réussi, **Vérifier ma réussite** (onglet Progression)
+   soumet la conversation au juge : *Réussi / Partiel / Pas encore* + score +
+   justification. Une réussite met à jour la progression et peut débloquer un
+   badge.
 7. **Astuce prof** : un lien terminé par `#coach` (ex.
    `http://localhost:8095/indirect-prompt-injection#coach`) ouvre le panneau
    automatiquement — pratique à distribuer aux élèves.
 
-Les données de l'élève (jeton, conversations, journaux, niveau d'indices)
-sont stockées dans le navigateur (`localStorage`, clé `pwnzzai_coach_v1`) et
+**Badges** (4 tiers) : *AI Red Teamer* (3 labs sans indice), *Persévérant*
+(6 labs), *Réflexif* (5 journaux « après » > 50 mots), *Apex Predator* (tous
+les labs sans indice).
+
+Les données de l'élève (jeton, scores, indices, journaux, quiz, badges) sont
+stockées dans le navigateur (`localStorage`, clé `pwnzzai_coach_v1`) et
 survivent aux rechargements.
 
 ---
@@ -149,9 +170,11 @@ Le coach envoie au dashboard les événements suivants, via le contrat public
 | Événement | Déclencheur | Données utiles |
 |---|---|---|
 | `session_start` | ouverture d'une page lab | chemin, identité élève si détectée |
-| `hint_revealed` | clic sur **Indice** | niveau d'indice |
+| `hint_revealed` | révélation d'un indice | niveau (N1-N5), coût, score après |
 | `challenge_solved` | juge → **Réussi** | score, verdict, justification |
-| `journal_filled` | **Enregistrer** le journal | longueur, texte |
+| `journal_filled` | **Enregistrer** le journal *après* | longueur, texte |
+| `quiz_completed` | validation du quiz | score, bonnes réponses / total |
+| `badge_earned` | badge débloqué | identifiant du badge |
 
 Le prof retrouve donc, pour chaque poste de la cohorte : quels labs sont
 résolus, combien d'indices ont été consommés, et le contenu des journaux —

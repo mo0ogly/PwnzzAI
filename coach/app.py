@@ -42,11 +42,23 @@ UPSTREAM = os.environ.get("PWNZZAI_UPSTREAM", "http://pwnzzai-app:8080").rstrip(
 HERE = Path(__file__).resolve().parent
 STATIC_DIR = HERE / "static"
 
+def _load_json(name: str, key: str) -> dict[str, Any]:
+    """Load a data file's top-level section, tolerating absence."""
+    path = HERE / name
+    if not path.is_file():
+        return {}
+    with path.open(encoding="utf-8") as fh:
+        return json.load(fh).get(key, {})
+
+
 with (HERE / "labs.json").open(encoding="utf-8") as fh:
     LABS: list[dict[str, Any]] = json.load(fh)["labs"]
 # longest 'match' first so /data-poisoning/catering-rag beats /data-poisoning
 LABS.sort(key=lambda lab_: len(lab_["match"]), reverse=True)
 LABS_BY_KEY = {lab_["key"]: lab_ for lab_ in LABS}
+
+BRIEFINGS: dict[str, Any] = _load_json("briefing.json", "briefings")
+QUIZ: dict[str, Any] = _load_json("quiz.json", "quiz")
 
 # Headers that must not be copied verbatim when proxying.
 HOP_BY_HOP = {
@@ -55,10 +67,18 @@ HOP_BY_HOP = {
     "content-length",
 }
 
+# coach.js is split into modules (kept under the 800-line rule). Order matters:
+# i18n + state + api before the UI orchestrator. defer preserves order.
+_COACH_SCRIPTS = (
+    "coach-i18n.js", "coach-state.js", "coach-api.js", "coach.js",
+)
 INJECT_SNIPPET = (
     '<link rel="stylesheet" href="/__coach/static/coach.css">'
     '<script>window.__COACH_BASE__="/__coach";</script>'
-    '<script src="/__coach/static/coach.js" defer></script>'
+    + "".join(
+        f'<script src="/__coach/static/{s}" defer></script>'
+        for s in _COACH_SCRIPTS
+    )
 )
 
 app = FastAPI(title="JuiceLab Coach for PwnzzAI", docs_url=None, redoc_url=None)
@@ -91,6 +111,8 @@ async def coach_config() -> JSONResponse:
             "name_en": lab_.get("name_en", ""),
             "goal_fr": lab_.get("goal_fr", ""),
             "goal_en": lab_.get("goal_en", ""),
+            "concepts": BRIEFINGS.get(lab_["key"], {}).get("concepts", []),
+            "quiz_count": len(QUIZ.get(lab_["key"], [])),
         }
         for lab_ in LABS
     ]
@@ -99,9 +121,64 @@ async def coach_config() -> JSONResponse:
             "cohort_id": dash.COHORT_ID,
             "instance_label": dash.INSTANCE_LABEL,
             "dashboard_configured": dash.is_configured(),
+            "hint_cost_by_level": llm_judge.HINT_COST_BY_LEVEL,
             "labs": public_labs,
         }
     )
+
+
+@app.get("/__coach/quiz/questions")
+async def coach_quiz_questions(lab_key: str = "") -> JSONResponse:
+    """Quiz questions for a lab, with correct answers and explanations
+    STRIPPED so the browser cannot read the key. Scoring is server-side."""
+    questions = QUIZ.get(lab_key)
+    if not questions:
+        return JSONResponse({"error": "no quiz for this lab"}, status_code=404)
+    stripped = [
+        {
+            "question_fr": q.get("question_fr", ""),
+            "question_en": q.get("question_en", ""),
+            "options_fr": q.get("options_fr", []),
+            "options_en": q.get("options_en", []),
+        }
+        for q in questions
+    ]
+    return JSONResponse({"lab_key": lab_key, "questions": stripped})
+
+
+@app.post("/__coach/quiz/score")
+async def coach_quiz_score(req: Request) -> JSONResponse:
+    """Grade quiz answers. Body: {lab_key, answers:[int,...]}. Returns the
+    score (0-100), per-question correctness and explanations."""
+    body = await _json_body(req)
+    lab_key = str(body.get("lab_key", ""))
+    questions = QUIZ.get(lab_key)
+    if not questions:
+        return JSONResponse({"error": "no quiz for this lab"}, status_code=404)
+    answers = body.get("answers") or []
+    if not isinstance(answers, list):
+        return JSONResponse({"error": "answers must be a list"}, status_code=400)
+
+    lang = "fr" if str(body.get("lang", "fr")).lower().startswith("fr") else "en"
+    per_q: list[dict[str, Any]] = []
+    correct_count = 0
+    for i, q in enumerate(questions):
+        given = answers[i] if i < len(answers) else None
+        ok = given == q.get("correct")
+        if ok:
+            correct_count += 1
+        per_q.append({
+            "correct": q.get("correct"),
+            "given": given,
+            "ok": ok,
+            "explanation": q.get(f"explanation_{lang}", ""),
+        })
+    score = round(correct_count / len(questions) * 100) if questions else 0
+    return JSONResponse({
+        "lab_key": lab_key, "score": score,
+        "correct_count": correct_count, "total": len(questions),
+        "by_question": per_q,
+    })
 
 
 @app.post("/__coach/hint")

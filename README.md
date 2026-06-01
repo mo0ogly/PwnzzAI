@@ -88,12 +88,14 @@ generated in the browser and kept in `localStorage` (`pwnzzai_coach_v1`).
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/__coach/config` | cohort + labs catalogue for the sidebar |
+| GET | `/__coach/config` | cohort + labs (briefing concepts, quiz count) + hint cost cohort |
 | GET | `/__coach/health` | coach / ollama / dashboard status |
-| POST | `/__coach/hint` | `{lab_key, level, lang, transcript}` → adaptive hint |
+| GET | `/__coach/quiz/questions?lab_key=…` | quiz questions (correct answers stripped) |
+| POST | `/__coach/quiz/score` | `{lab_key, answers, lang}` → `{score, by_question}` |
+| POST | `/__coach/hint` | `{lab_key, level, lang, transcript}` → graded hint (N1-N5) + cost |
 | POST | `/__coach/judge` | `{lab_key, transcript}` → `{success, score, reason}` |
 | POST | `/__coach/event` | forward an event to the dashboard |
-| GET | `/__coach/static/*` | `coach.js`, `coach.css` |
+| GET | `/__coach/static/*` | `coach-i18n.js`, `coach-state.js`, `coach-api.js`, `coach.js`, `coach.css` |
 
 ## Labs
 

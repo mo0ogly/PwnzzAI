@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN python -m pip install --upgrade pip && \
     pip install --retries 10 --timeout 600 -r requirements.txt
 
-COPY app.py llm_judge.py dashboard_client.py labs.json ./
+COPY app.py llm_judge.py dashboard_client.py labs.json briefing.json quiz.json ./
 COPY static ./static
 
 ENV COACH_PORT=8090 \
