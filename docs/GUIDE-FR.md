@@ -102,6 +102,10 @@ curl -s http://localhost:8095/__coach/health
 > **même** matrice de cohorte. Cf. la note « Topologie dashboard » de
 > [PARITY-JUICELAB.md](./PARITY-JUICELAB.md).
 
+![Tableau de bord prof](img/prof-dashboard-light.png)
+
+*Tableau de bord prof — cohorte PwnzzAI sur l'instance centrale (même matrice que les cohortes Juice Shop).*
+
 Tout se règle dans le fichier `.env` de PwnzzAI :
 
 | Variable | Rôle | Exemple |

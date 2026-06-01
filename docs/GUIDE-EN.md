@@ -100,6 +100,10 @@ curl -s http://localhost:8095/__coach/health
 > **same** cohort matrix. See the "Topologie dashboard" note in
 > [PARITY-JUICELAB.md](./PARITY-JUICELAB.md).
 
+![Teacher dashboard](img/prof-dashboard-light.png)
+
+*Teacher dashboard — PwnzzAI cohort on the central shared instance (same matrix as the Juice Shop cohorts).*
+
 Everything is set in the PwnzzAI `.env`:
 
 | Variable | Role | Example |
