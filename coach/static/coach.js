@@ -362,7 +362,7 @@
     });
     c.appendChild(bgrid);
 
-    if (config && config.dashboard_configured) c.appendChild(identityBlock());
+    if (config && config.dashboard_configured) c.appendChild(joinBlock());
 
     var line = el("div", "coach-cohort");
     if (config && config.dashboard_configured) line.textContent = t("cohort") + ": " + (config.cohort_id || "-");
@@ -448,23 +448,63 @@
     });
   }
 
-  // Identity used to attribute dashboard events. Auto-filled from the
-  // PwnzzAI navbar when the student is logged in; otherwise the student
-  // sets it here once. Read-only on the OWASP side.
-  function identityBlock() {
+  // Cohort enrolment block. The student joins with their email; the teacher
+  // approves in the dashboard, after which the roster shows a name instead
+  // of an anonymous token. Mirrors the JuiceLab cohort-join dialog.
+  function joinBlock() {
     var wrap = el("div", "coach-identity");
-    var cur = identity();
-    if (cur) {
-      wrap.appendChild(el("span", "coach-muted", t("identified_as") + ": " + cur));
+    var status = St.joinStatus();
+    var email = St.email();
+    if (status === "validated") {
+      wrap.appendChild(el("span", "coach-ok", t("join_validated") + ": " + email));
       return wrap;
     }
-    wrap.appendChild(el("span", "coach-label", t("identity_prompt")));
+    if (status === "pending") {
+      wrap.appendChild(el("span", "coach-muted", t("join_pending") + " (" + email + ")"));
+      return wrap;
+    }
+    if (status === "rejected") wrap.appendChild(el("span", "coach-bad", t("join_rejected")));
+    wrap.appendChild(el("span", "coach-label", t("join_prompt")));
     var inp = el("input", "coach-input");
-    inp.type = "text"; inp.placeholder = t("identity_ph");
-    var btn = el("button", "coach-btn", t("save"));
-    btn.addEventListener("click", function () { if (St.setIdentity(inp.value)) render(); });
-    wrap.appendChild(inp); wrap.appendChild(btn);
+    inp.type = "email"; inp.placeholder = t("join_ph");
+    if (email) inp.value = email;
+    var btn = el("button", "coach-btn", t("join_btn"));
+    var line = el("div", "coach-status");
+    btn.addEventListener("click", function () {
+      var e = inp.value.trim();
+      if (!e || e.indexOf("@") === -1) {
+        line.textContent = t("join_bad_email"); line.className = "coach-status coach-warn"; return;
+      }
+      btn.disabled = true; line.textContent = t("join_sending"); line.className = "coach-status coach-muted";
+      Api.join(e).then(function (res) {
+        btn.disabled = false;
+        if (res.ok && res.body && res.body.ok) {
+          St.setEmail(e); St.setJoinStatus(res.body.status || "pending"); render();
+        } else {
+          var err = res.body && res.body.error;
+          line.textContent = (err && err.indexOf("unknown cohort") !== -1) ? t("join_no_cohort") : (err || t("unavailable"));
+          line.className = "coach-status coach-warn";
+        }
+      }).catch(function () {
+        btn.disabled = false; line.textContent = t("unavailable"); line.className = "coach-status coach-warn";
+      });
+    });
+    wrap.appendChild(inp); wrap.appendChild(btn); wrap.appendChild(line);
     return wrap;
+  }
+
+  // Poll the dashboard for the enrolment verdict so a teacher approval is
+  // reflected without a manual reload. Stops once validated.
+  function refreshJoinStatus() {
+    if (!config || !config.dashboard_configured) return;
+    if (St.joinStatus() === "validated") return;
+    Api.joinStatus().then(function (res) {
+      var st = res.body && res.body.status;
+      if (st && st !== "unknown" && st !== St.joinStatus()) {
+        St.setJoinStatus(st);
+        if (activeTab === "progress" || !currentLab) render();
+      }
+    }).catch(function () { /* offline: keep local status */ });
   }
   function toggleConv(c) {
     if (!ui.convBox) return;
@@ -535,10 +575,12 @@
     return "";
   }
 
-  // Resolved student identity for dashboard events: the PwnzzAI username if
-  // detected (cached so it survives navigation to a page with no navbar),
-  // otherwise the explicit identity the student typed into the coach.
+  // Resolved student identity for dashboard events. Priority: the cohort
+  // enrolment email (the canonical identity the teacher sees in the roster),
+  // then the PwnzzAI navbar username (cached), then any earlier value.
   function identity() {
+    var email = St.email();
+    if (email) return email;
     var detected = detectPwnzzUser();
     if (detected) return St.setIdentity(detected);
     return St.identity();
@@ -560,6 +602,8 @@
         path: window.location.pathname, student_email: identity()
       });
       installSessionEnd();
+      refreshJoinStatus();
+      window.setInterval(refreshJoinStatus, 60000);
     }).catch(function () {
       config = { labs: [], dashboard_configured: false };
       buildShell();

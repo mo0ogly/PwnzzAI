@@ -273,6 +273,26 @@ async def coach_walkthrough(req: Request) -> JSONResponse:
         return JSONResponse({"error": "walkthrough unavailable"}, status_code=503)
 
 
+@app.post("/__coach/join")
+async def coach_join(req: Request) -> JSONResponse:
+    """Enrol the student into the cohort (email + dashboard join workflow).
+    cohort_id is server-side; the student only sends their email."""
+    body = await _json_body(req)
+    status, data = await dash.cohort_join(
+        student_token=str(body.get("student_token", "")).strip(),
+        email=str(body.get("email", "")).strip(),
+    )
+    return JSONResponse(data, status_code=status)
+
+
+@app.get("/__coach/join/status")
+async def coach_join_status(student_token: str = "") -> JSONResponse:
+    """Poll the student's enrolment status. Always 200; the dashboard verdict
+    is in the body so the sidebar can degrade gracefully when offline."""
+    data = await dash.student_status(student_token=student_token.strip())
+    return JSONResponse(data)
+
+
 @app.post("/__coach/event")
 async def coach_event(req: Request) -> JSONResponse:
     body = await _json_body(req)

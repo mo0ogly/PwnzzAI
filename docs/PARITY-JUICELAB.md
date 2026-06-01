@@ -51,6 +51,7 @@ Juice Shop). C'est voulu : les labs PwnzzAI n'ont pas de flag binaire.
 | 4 | Corrigé (walkthrough) débloqué après réussite | MOYEN | fait |
 | 5 | Question quiz à texte libre (mots-clés) | MOYEN | fait |
 | 6 | Endpoint admin (snapshot cohorte) | MOYEN | N/A (archi) |
+| 7 | Enrôlement cohorte (join email + approbation) | HAUT | fait |
 
 Hors périmètre (cosmétique ou inadapté au modèle PwnzzAI) : easter eggs
 (salle des trophées, ROT13), vérification de flag CTF — les labs PwnzzAI
@@ -163,6 +164,42 @@ serveur. Le quiz PwnzzAI était QCM seul.
 
 Le LLM-as-judge reste l'évaluation principale d'un lab ; ce type texte-libre
 n'est qu'une variante de question de quiz, pour la parité de format.
+
+### 7. Enrôlement de cohorte (join email + approbation prof)
+
+Gap majeur découvert via un test live contre le dashboard réel : les élèves
+PwnzzAI arrivaient bien dans le dashboard, mais **comme des tokens
+anonymes** (`email` et `display_name` à `null`), car le coach n'avait pas le
+flux d'enrôlement de JuiceLab. Le prof voyait la progression mais pas *qui*
+était chaque token — inexploitable pour une cohorte réelle.
+
+JuiceLab a une modale « rejoindre la cohorte » : l'élève saisit son email,
+le dashboard crée une demande `pending`, le prof approuve, et le roster
+affiche un nom. Le coach reprend ce flux (sidecar, proxy server-side, sans
+CORS) :
+
+- `dashboard_client.py` : `cohort_join(student_token, email)` →
+  `POST /api/cohort/join` (cohort_id depuis l'env, autoritatif) ;
+  `student_status(student_token)` → `GET /api/student/status`.
+- `app.py` : `POST /__coach/join` et `GET /__coach/join/status` relaient le
+  dashboard.
+- `coach.js` : bloc d'enrôlement dans l'onglet Progression — saisie email →
+  `pending` → poll toutes les 60 s → `validated`. L'email **devient
+  l'identité canonique** (`student_email` des events + roster), au-dessus du
+  username de la navbar.
+
+Implication assumée (choix utilisateur : approbation prof) : tant que
+l'élève n'est pas approuvé, le dashboard **bloque ses events** (gate
+`/api/sync`). La file d'attente offline du coach les conserve et les rejoue
+après approbation, donc aucune perte.
+
+Pré-requis : le prof doit **créer la cohorte** dans le dashboard avant que
+les élèves puissent la rejoindre (le join refuse une cohorte inconnue,
+pour éviter le spam d'identifiants de cohorte depuis un endpoint public).
+
+Boucle validée de bout en bout contre le dashboard réel : création cohorte
+→ join (pending, email au roster) → event bloqué 403 → approbation →
+events acceptés 201 → roster `validated` avec email + progression.
 
 ## Portes de vérification
 

@@ -124,6 +124,12 @@
     clearTranscript: function (key) { transcripts[key] = []; },
 
     config: function () { return get("/config"); },
+    join: function (email) {
+      return post("/join", { email: email, student_token: window.CoachState.token() });
+    },
+    joinStatus: function () {
+      return get("/join/status?student_token=" + encodeURIComponent(window.CoachState.token()));
+    },
     quizQuestions: function (key) { return get("/quiz/questions?lab_key=" + encodeURIComponent(key)); },
     quizScore: function (key, answers, lang) { return post("/quiz/score", { lab_key: key, answers: answers, lang: lang }); },
     hint: function (key, level, lang, transcript) {

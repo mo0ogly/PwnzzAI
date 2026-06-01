@@ -113,6 +113,54 @@ async def forward_event(
         return {"ok": False, "error": "dashboard unreachable", "queued": True}
 
 
+async def cohort_join(*, student_token: str, email: str) -> tuple[int, dict[str, Any]]:
+    """Enrol a student into the cohort via the dashboard join workflow.
+
+    cohort_id is the server-side authoritative value (env), so the student
+    only supplies their email. The dashboard creates a 'pending' request the
+    teacher then approves; until then the sync gate holds the student's
+    events (the browser keeps its offline queue and retries).
+    """
+    if not DASHBOARD_URL:
+        return 503, {"error": "dashboard not configured"}
+    payload = {
+        "cohort_id": COHORT_ID,
+        "student_token": student_token,
+        "email": email,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=DASHBOARD_TIMEOUT) as client:
+            resp = await client.post(
+                f"{DASHBOARD_URL}/api/cohort/join", json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("cohort join failed: %s", exc)
+        return 502, {"error": "dashboard unreachable"}
+    try:
+        body = resp.json()
+    except Exception:  # noqa: BLE001
+        body = {"error": resp.text[:200]}
+    LOGGER.info("join cohort=%s status=%s http=%s",
+                COHORT_ID, body.get("status"), resp.status_code)
+    return resp.status_code, body
+
+
+async def student_status(*, student_token: str) -> dict[str, Any]:
+    """Poll the student's enrolment status (unknown/pending/validated/rejected)."""
+    if not DASHBOARD_URL:
+        return {"status": "unknown", "error": "dashboard not configured"}
+    url = (f"{DASHBOARD_URL}/api/student/status"
+           f"?student_token={quote(student_token)}&cohort={quote(COHORT_ID)}")
+    try:
+        async with httpx.AsyncClient(timeout=DASHBOARD_TIMEOUT) as client:
+            resp = await client.get(url)
+        return resp.json()
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("student status failed: %s", exc)
+        return {"status": "unknown", "error": "dashboard unreachable"}
+
+
 async def fetch_proof(
     *,
     student_token: str,
