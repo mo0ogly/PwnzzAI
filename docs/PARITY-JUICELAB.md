@@ -209,3 +209,10 @@ events acceptés 201 → roster `validated` avec email + progression.
 - Smoke : le coach démarre, l'onglet Progression affiche le bouton preuve
   pour un lab réussi, `session_end` part au déchargement, l'identité
   détectée s'affiche dans les événements.
+
+## Topologie dashboard
+
+Le dashboard prof est central et unique. PwnzzAI le consomme comme client
+(`JUICELAB_DASHBOARD_URL`) ou le deploie via `scripts/deploy-dashboard.sh`
+(sparse checkout pinne de la seule partie prof). Le code serveur n'est jamais
+duplique dans ce repo. Detail cote juicelab : `docs/DASHBOARD-CENTRAL.md`.

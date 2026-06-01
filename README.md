@@ -84,6 +84,24 @@ The dashboard auto-registers an unknown `(cohort, token)` pair as `validated`
 on the first event — no pre-enrolment needed. The student token is a UUID
 generated in the browser and kept in `localStorage` (`pwnzzai_coach_v1`).
 
+### Dashboard prof (central, partage)
+
+Le dashboard prof se deploie **une seule fois** et sert juicelab ET PwnzzAI.
+PwnzzAI n'embarque pas le serveur : il pointe dessus via `JUICELAB_DASHBOARD_URL`.
+
+Si tu veux le deployer depuis cette machine (sans cloner le code eleve juice) :
+
+```bash
+scripts/deploy-dashboard.sh
+```
+
+Cela tire uniquement la partie prof (dashboard + docker) du repo juicelab a la
+ref `JUICELAB_DASHBOARD_REF`, puis lance le compose dashboard-only. Renseigne
+les secrets dans le `.env` genere (`DASHBOARD_TEACHER_TOKEN`,
+`DASHBOARD_PROOF_SECRET`, >= 16 caracteres) puis relance.
+
+Anti-pattern : ne deploie pas un second dashboard. Une instance, deux clients.
+
 ## Endpoints (coach API)
 
 | Method | Path | Purpose |
