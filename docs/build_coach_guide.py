@@ -434,6 +434,16 @@ def build(tmp: Path) -> None:
     ])
 
     doc.add_heading("5. Cote eleve : comment ca s'utilise", level=1)
+    note(doc, "Le panneau coach est FERME au depart, il n'apparait pas tout seul. "
+              "Pour l'ouvrir : cliquer le bouton rond violet JL en bas a droite, "
+              "OU ajouter #coach a la fin de l'URL d'un lab (ex. http://localhost:"
+              + COACH_PORT + "/direct-prompt-injection#coach), le panneau s'ouvre "
+              "alors automatiquement. Verifier d'etre sur le port " + COACH_PORT +
+              " (le coach), pas l'app brute. Si rien n'apparait : Ctrl+Shift+R.")
+    add_screenshot(doc, IMG_DIR / "coach-closed.png",
+                   "Le bouton JL ferme, en bas a droite de la page du lab.")
+    add_screenshot(doc, IMG_DIR / "coach-panel.png",
+                   "Le panneau ouvert : onglets Briefing / Indices / Journal / Quiz / Progression.")
     numbered(doc, "Ouvrir http://localhost:" + COACH_PORT +
                   " et aller sur un lab (ex. Direct Prompt Injection).")
     numbered(doc, "Cliquer le bouton rond violet JL en bas a droite : le "

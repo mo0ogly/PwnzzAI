@@ -166,6 +166,18 @@ The default target directory is `.juicelab-dashboard/` at the repo root (or
 
 ## 6. For students: how it works
 
+> **Important — the coach panel is CLOSED by default.** It does not pop up on
+> its own. Two ways to open it:
+>
+> 1. Click the **round purple "JL" button** at the bottom-right of the page
+>    (see screenshot below).
+> 2. Or append **`#coach`** to a lab URL, e.g.
+>    `http://localhost:8095/direct-prompt-injection#coach` — the panel opens
+>    automatically (ideal to hand out to students).
+>
+> Make sure you are on port **8095** (the coach), not `8090` (the raw app, no
+> coach). If nothing shows up, reload with `Ctrl+Shift+R`.
+
 1. Open `http://localhost:8095` and navigate to a lab (e.g. *Direct Prompt
    Injection*).
 2. A round purple **"JL"** button appears bottom-right. Click it to open the
@@ -190,6 +202,14 @@ The default target directory is `.juicelab-dashboard/` at the repo root (or
 7. **Teacher tip**: a URL ending in `#coach` (e.g.
    `http://localhost:8095/indirect-prompt-injection#coach`) opens the panel
    automatically — convenient to hand out to students.
+
+The closed **"JL"** button, bottom-right of the lab page:
+
+![Closed coach button, bottom-right](img/coach-closed.png)
+
+The open panel (the 5 tabs Briefing / Hints / Journal / Quiz / Progress):
+
+![Open coach panel](img/coach-panel.png)
 
 **Badges** (4 tiers): *AI Red Teamer* (3 labs with no hint), *Persistent*
 (6 labs), *Reflective* (5 'after' journals > 50 words), *Apex Predator* (every

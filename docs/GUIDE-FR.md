@@ -168,6 +168,18 @@ Le répertoire cible par défaut est `.juicelab-dashboard/` à la racine du dép
 
 ## 6. Côté élève : comment ça s'utilise
 
+> **Important — le panneau coach est FERMÉ au départ.** Il n'apparaît pas tout
+> seul. Pour l'ouvrir, deux façons :
+>
+> 1. Clique le **bouton rond violet « JL »** en bas à droite de la page (voir
+>    capture plus bas).
+> 2. Ou ajoute **`#coach`** à la fin de l'URL d'un lab, ex.
+>    `http://localhost:8095/direct-prompt-injection#coach` — le panneau s'ouvre
+>    automatiquement (idéal à distribuer aux élèves).
+>
+> Vérifie que tu es bien sur le port **8095** (le coach), pas `8090` (l'app
+> brute, sans coach). Si rien n'apparaît : recharge avec `Ctrl+Shift+R`.
+
 1. Ouvrir `http://localhost:8095` et naviguer vers un lab (ex. *Direct Prompt
    Injection*).
 2. Un bouton rond violet **« JL »** apparaît en bas à droite. Cliquer dessus
@@ -193,6 +205,14 @@ Le répertoire cible par défaut est `.juicelab-dashboard/` à la racine du dép
 7. **Astuce prof** : un lien terminé par `#coach` (ex.
    `http://localhost:8095/indirect-prompt-injection#coach`) ouvre le panneau
    automatiquement — pratique à distribuer aux élèves.
+
+Le bouton **« JL »** fermé, en bas à droite de la page du lab :
+
+![Bouton coach ferme, en bas a droite](img/coach-closed.png)
+
+Le panneau ouvert (les 5 onglets Briefing / Indices / Journal / Quiz / Progression) :
+
+![Panneau coach ouvert](img/coach-panel.png)
 
 **Badges** (4 tiers) : *AI Red Teamer* (3 labs sans indice), *Persévérant*
 (6 labs), *Réflexif* (5 journaux « après » > 50 mots), *Apex Predator* (tous
