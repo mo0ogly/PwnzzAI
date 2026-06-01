@@ -55,6 +55,7 @@ LABEL = "pwnzzai-poste-01"
 JUDGE_MODEL = "llama3.2:3b"
 
 DOCS_DIR = Path(__file__).resolve().parent
+IMG_DIR = DOCS_DIR / "img"
 OUT = DOCS_DIR / "GUIDE-COACH-PWNZZAI.docx"
 
 # Palette (identique au modele JuiceLab, teinte violette du coach pour le titre)
@@ -268,6 +269,18 @@ def add_diagram(doc: Document, png: Path, caption: str) -> None:
         r.font.color.rgb = DARK
 
 
+def add_screenshot(doc: Document, png: Path, caption: str) -> None:
+    """Insere une capture d'ecran (PNG deja sur disque) + legende centree.
+
+    Contrairement a add_diagram (PNG rendu a la volee par mmdc), la capture
+    est versionnee dans docs/img/. Si absente, on signale au lieu de planter.
+    """
+    if png and png.exists():
+        add_diagram(doc, png, caption)
+    else:
+        print("  [warn] capture introuvable, saut : %s" % png, file=sys.stderr)
+
+
 # ---------------------------------------------------------------------------
 # Diagrammes Mermaid
 # ---------------------------------------------------------------------------
@@ -378,6 +391,27 @@ def build(tmp: Path) -> None:
     ])
 
     doc.add_heading("4. Connexion au dashboard prof (la cohorte)", level=1)
+    para(doc, "Topologie : un dashboard central, PwnzzAI est un client. Le "
+              "dashboard prof est une instance unique et partagee, deployee une "
+              "seule fois cote juicelab. Elle sert a la fois les cohortes "
+              "JuiceLab (Juice Shop) ET les cohortes PwnzzAI : les deux remontent "
+              "dans la meme matrice.")
+    para(doc, "PwnzzAI ne duplique JAMAIS le code serveur du dashboard. Il s'y "
+              "branche comme client via la variable JUICELAB_DASHBOARD_URL. "
+              "Anti-pattern a proscrire : deployer un second dashboard "
+              "specifique a PwnzzAI.")
+    para(doc, "Cas optionnel : si le dashboard central n'existe pas encore et que "
+              "tu veux le deployer depuis cette machine, le script "
+              "scripts/deploy-dashboard.sh fait un sparse-checkout pinne du depot "
+              "juicelab (REF reglee par JUICELAB_DASHBOARD_REF, SHA conseille en "
+              "prod) et ne tire QUE la partie prof (dashboard/, docker/, "
+              "scripts/). L'overlay et le Juice Shop eleve ne sont jamais tires. "
+              "Une fois le dashboard demarre, pointer JUICELAB_DASHBOARD_URL "
+              "dessus.")
+    add_screenshot(
+        doc, IMG_DIR / "prof-dashboard-light.png",
+        "Tableau de bord prof - cohorte PwnzzAI sur l'instance centrale "
+        "(meme matrice que les cohortes Juice Shop).")
     para(doc, "Tout se regle dans le fichier .env de PwnzzAI :")
     add_table(
         doc, ["Variable", "Role", "Exemple"],
