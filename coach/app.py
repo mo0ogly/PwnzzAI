@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -134,15 +135,24 @@ async def coach_quiz_questions(lab_key: str = "") -> JSONResponse:
     questions = QUIZ.get(lab_key)
     if not questions:
         return JSONResponse({"error": "no quiz for this lab"}, status_code=404)
-    stripped = [
-        {
-            "question_fr": q.get("question_fr", ""),
-            "question_en": q.get("question_en", ""),
-            "options_fr": q.get("options_fr", []),
-            "options_en": q.get("options_en", []),
-        }
-        for q in questions
-    ]
+    stripped = []
+    for q in questions:
+        # Free-text questions ship without their expected_keywords; MCQ
+        # without correct/explanation. Scoring stays server-side either way.
+        if q.get("type") == "text":
+            stripped.append({
+                "type": "text",
+                "question_fr": q.get("question_fr", ""),
+                "question_en": q.get("question_en", ""),
+            })
+        else:
+            stripped.append({
+                "type": "mcq",
+                "question_fr": q.get("question_fr", ""),
+                "question_en": q.get("question_en", ""),
+                "options_fr": q.get("options_fr", []),
+                "options_en": q.get("options_en", []),
+            })
     return JSONResponse({"lab_key": lab_key, "questions": stripped})
 
 
@@ -164,15 +174,26 @@ async def coach_quiz_score(req: Request) -> JSONResponse:
     correct_count = 0
     for i, q in enumerate(questions):
         given = answers[i] if i < len(answers) else None
-        ok = given == q.get("correct")
+        if q.get("type") == "text":
+            # Keyword scoring, accent- and case-insensitive. The student
+            # needs at least min_keywords distinct expected terms to pass.
+            keywords = q.get(f"expected_keywords_{lang}", [])
+            text = _norm(str(given or ""))
+            matched = sorted({k for k in keywords if _norm(k) and _norm(k) in text})
+            ok = len(matched) >= int(q.get("min_keywords", 2))
+            entry: dict[str, Any] = {
+                "type": "text", "ok": ok, "matched": len(matched),
+                "explanation": q.get(f"explanation_{lang}", ""),
+            }
+        else:
+            ok = given == q.get("correct")
+            entry = {
+                "type": "mcq", "correct": q.get("correct"), "given": given,
+                "ok": ok, "explanation": q.get(f"explanation_{lang}", ""),
+            }
         if ok:
             correct_count += 1
-        per_q.append({
-            "correct": q.get("correct"),
-            "given": given,
-            "ok": ok,
-            "explanation": q.get(f"explanation_{lang}", ""),
-        })
+        per_q.append(entry)
     score = round(correct_count / len(questions) * 100) if questions else 0
     return JSONResponse({
         "lab_key": lab_key, "score": score,
@@ -308,6 +329,12 @@ async def coach_static(filename: str) -> Response:
         "text/css" if safe.endswith(".css") else "application/octet-stream"
     )
     return FileResponse(target, media_type=media)
+
+
+def _norm(s: str) -> str:
+    """Lowercase and strip accents for accent-insensitive keyword matching."""
+    decomposed = unicodedata.normalize("NFKD", str(s).lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
 async def _json_body(req: Request) -> dict[str, Any]:

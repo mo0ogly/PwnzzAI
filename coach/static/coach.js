@@ -228,16 +228,24 @@
       var block = el("div", "coach-quiz-q");
       block.appendChild(el("p", "coach-quiz-question",
         (qi + 1) + ". " + (St.lang() === "fr" ? q.question_fr : q.question_en)));
-      var opts = St.lang() === "fr" ? q.options_fr : q.options_en;
-      opts.forEach(function (opt, oi) {
-        var lab = el("label", "coach-quiz-opt");
-        var radio = el("input");
-        radio.type = "radio"; radio.name = "q" + qi; radio.value = oi;
-        if (ui.quizCache.answers[qi] === oi) radio.checked = true;
-        radio.addEventListener("change", function () { ui.quizCache.answers[qi] = oi; });
-        lab.appendChild(radio); lab.appendChild(el("span", null, opt));
-        block.appendChild(lab);
-      });
+      if (q.type === "text") {
+        var ta = el("textarea", "coach-textarea");
+        ta.placeholder = t("quiz_text_ph");
+        if (typeof ui.quizCache.answers[qi] === "string") ta.value = ui.quizCache.answers[qi];
+        ta.addEventListener("input", function () { ui.quizCache.answers[qi] = ta.value; });
+        block.appendChild(ta);
+      } else {
+        var opts = St.lang() === "fr" ? q.options_fr : q.options_en;
+        opts.forEach(function (opt, oi) {
+          var lab = el("label", "coach-quiz-opt");
+          var radio = el("input");
+          radio.type = "radio"; radio.name = "q" + qi; radio.value = oi;
+          if (ui.quizCache.answers[qi] === oi) radio.checked = true;
+          radio.addEventListener("change", function () { ui.quizCache.answers[qi] = oi; });
+          lab.appendChild(radio); lab.appendChild(el("span", null, opt));
+          block.appendChild(lab);
+        });
+      }
       c.appendChild(block);
     });
     ui.quizStatus = el("div", "coach-status");
@@ -250,7 +258,11 @@
   function submitQuiz() {
     var cache = ui.quizCache;
     if (!cache) return;
-    if (cache.answers.filter(function (a) { return a != null; }).length < cache.questions.length) {
+    var answered = cache.questions.every(function (q, qi) {
+      var a = cache.answers[qi];
+      return q.type === "text" ? (typeof a === "string" && a.trim().length > 0) : (a != null);
+    });
+    if (!answered) {
       ui.quizStatus.textContent = t("quiz_pick"); ui.quizStatus.className = "coach-status coach-warn"; return;
     }
     Api.quizScore(currentLab.key, cache.answers, St.lang()).then(function (res) {

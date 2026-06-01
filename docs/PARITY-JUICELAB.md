@@ -49,7 +49,7 @@ Juice Shop). C'est voulu : les labs PwnzzAI n'ont pas de flag binaire.
 | 2 | Émission de `session_end` | HAUT | fait |
 | 3 | Identité élève robuste (non hardcodée) | HAUT | fait |
 | 4 | Corrigé (walkthrough) débloqué après réussite | MOYEN | fait |
-| 5 | Question quiz à texte libre (mots-clés) | MOYEN | backlog (faible valeur) |
+| 5 | Question quiz à texte libre (mots-clés) | MOYEN | fait |
 | 6 | Endpoint admin (snapshot cohorte) | MOYEN | N/A (archi) |
 
 Hors périmètre (cosmétique ou inadapté au modèle PwnzzAI) : easter eggs
@@ -58,9 +58,6 @@ sont jugés par le LLM, il n'y a pas de flag.
 
 Décisions sur les MOYEN :
 
-- **#5 quiz texte-libre** : laissé en backlog. Le LLM-as-judge évalue déjà
-  du texte libre de façon plus riche qu'un score par mots-clés ; le QCM
-  reste la forme la plus utile côté quiz. Faible valeur ajoutée.
 - **#6 endpoint admin** : sans objet pour le sidecar. Le coach est
   *stateless* (l'état des indices vit dans le `localStorage` de l'élève,
   pas côté serveur), donc il n'a aucune donnée de cohorte à exposer. La
@@ -147,6 +144,25 @@ Approche native PwnzzAI, cohérente avec la génération des indices :
 - `coach.js` : bouton « Voir le corrigé » dans l'onglet Progression pour un
   lab résolu. Le corrigé est mis en cache (`CoachState.setWalkthrough`) car
   le transcript en mémoire qui sert à le régénérer disparaît au rechargement.
+
+### 5. Question quiz à texte libre
+
+JuiceLab mélange QCM et questions à texte libre scorées par mots-clés
+serveur. Le quiz PwnzzAI était QCM seul.
+
+- `quiz.json` : nouveau type `type: "text"` (les QCM restent sans `type`,
+  rétro-compatible) avec `expected_keywords_fr/en` + `min_keywords`. Une
+  question texte-libre réelle par lab (13), bilingue : « cite deux défenses
+  contre X » — ancrée sur les mitigations OWASP LLM Top 10.
+- `app.py` : l'endpoint questions ne renvoie jamais les `expected_keywords`
+  (strip serveur, comme `correct` pour les QCM). Le scoring normalise
+  accents + casse (`_norm`) et valide si l'élève cite ≥ `min_keywords`
+  notions distinctes.
+- `coach.js` : rend un `textarea` pour les questions texte, un groupe de
+  radios pour les QCM ; la validation exige une réponse non vide.
+
+Le LLM-as-judge reste l'évaluation principale d'un lab ; ce type texte-libre
+n'est qu'une variante de question de quiz, pour la parité de format.
 
 ## Portes de vérification
 
