@@ -93,6 +93,13 @@ curl -s http://localhost:8095/__coach/health
 
 ## 4. Connecting to the teacher dashboard (the cohort)
 
+> **Topology: one central dashboard, PwnzzAI is a client.** The teacher
+> dashboard is a **single shared instance** (deployed on the juicelab side).
+> PwnzzAI **never** duplicates the dashboard server code: it connects to it as a
+> client via `JUICELAB_DASHBOARD_URL`. JuiceLab and PwnzzAI report into the
+> **same** cohort matrix. See the "Topologie dashboard" note in
+> [PARITY-JUICELAB.md](./PARITY-JUICELAB.md).
+
 Everything is set in the PwnzzAI `.env`:
 
 | Variable | Role | Example |
@@ -122,7 +129,38 @@ docker compose up -d pwnzzai-coach
 
 ---
 
-## 5. For students: how it works
+## 5. Deploying the dashboard from PwnzzAI (optional)
+
+The normal case is that the teacher dashboard **already runs elsewhere** (on
+the juicelab side) and PwnzzAI connects to it via `JUICELAB_DASHBOARD_URL`. But
+if you want to run it **from this machine**, without cloning the juice student
+code, use:
+
+```bash
+scripts/deploy-dashboard.sh [TARGET_DIR]
+```
+
+This script does a **pinned sparse checkout** of the juicelab repo and pulls
+**only** the teacher part — `dashboard/`, `docker/` and `scripts/` — then starts
+the dashboard-only stack. **The overlay and the student Juice Shop are never
+downloaded.** Two `.env` variables drive it:
+
+| Variable | Role | Default |
+|---|---|---|
+| `JUICELAB_DASHBOARD_REF` | git ref pulled (SHA recommended in prod, otherwise `main`) | `main` |
+| `JUICELAB_REPO_URL` | source juicelab repo URL | `https://github.com/mo0ogly/juicelab.git` |
+
+The default target directory is `.juicelab-dashboard/` at the repo root (or
+`JUICELAB_DASHBOARD_DIR`). Once the dashboard is up, point
+`JUICELAB_DASHBOARD_URL` at it (§ 4).
+
+> Anti-pattern: **never** deploy a second dashboard "for PwnzzAI". A single
+> instance, two client products — otherwise the teacher sees their students
+> split across two separate SQLite databases.
+
+---
+
+## 6. For students: how it works
 
 1. Open `http://localhost:8095` and navigate to a lab (e.g. *Direct Prompt
    Injection*).
@@ -158,7 +196,7 @@ browser (`localStorage`, key `pwnzzai_coach_v1`) and survives reloads.
 
 ---
 
-## 6. For teachers: what is reported
+## 7. For teachers: what is reported
 
 The coach sends the following events to the dashboard, via the same public
 `POST /api/sync` contract as Juice Shop:
@@ -177,7 +215,7 @@ hints were consumed, and the journal contents — exactly like a Juice Shop lab.
 
 ---
 
-## 7. Choosing the judge model
+## 8. Choosing the judge model
 
 The judge is the core of the pedagogical value. Its reliability scales
 directly with model size:
@@ -194,7 +232,7 @@ The judge model is independent of the lab model: you can run the labs on 1b
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -211,7 +249,7 @@ internal resolver dropped. `docker restart ollama` then retry the `pull`.
 
 ---
 
-## 9. Why it survives OWASP updates
+## 10. Why it survives OWASP updates
 
 The proxy knows **no internal route** of PwnzzAI: it forwards everything and
 only injects a `<script>` tag. Transcript capture is generic (any `fetch`/XHR

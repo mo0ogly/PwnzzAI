@@ -95,6 +95,13 @@ curl -s http://localhost:8095/__coach/health
 
 ## 4. Connexion au dashboard prof (la cohorte)
 
+> **Topologie : un dashboard central, PwnzzAI est un client.** Le dashboard
+> prof est une **instance unique et partagée** (déployée côté juicelab). PwnzzAI
+> ne duplique **jamais** le code serveur du dashboard : il s'y branche comme
+> client via `JUICELAB_DASHBOARD_URL`. JuiceLab et PwnzzAI remontent dans la
+> **même** matrice de cohorte. Cf. la note « Topologie dashboard » de
+> [PARITY-JUICELAB.md](./PARITY-JUICELAB.md).
+
 Tout se règle dans le fichier `.env` de PwnzzAI :
 
 | Variable | Rôle | Exemple |
@@ -124,7 +131,38 @@ docker compose up -d pwnzzai-coach
 
 ---
 
-## 5. Côté élève : comment ça s'utilise
+## 5. Déployer le dashboard depuis PwnzzAI (optionnel)
+
+Le cas normal est que le dashboard prof tourne **déjà ailleurs** (côté
+juicelab) et que PwnzzAI s'y branche via `JUICELAB_DASHBOARD_URL`. Mais si tu
+veux le faire tourner **depuis cette machine**, sans cloner le code élève
+juice, utilise :
+
+```bash
+scripts/deploy-dashboard.sh [REPERTOIRE_CIBLE]
+```
+
+Ce script fait un **sparse checkout pinné** du dépôt juicelab et ne tire
+**que** la partie prof — `dashboard/`, `docker/` et `scripts/` — puis lance la
+stack dashboard seule. **L'overlay et le Juice Shop élève ne sont jamais
+téléchargés.** Deux variables du `.env` le pilotent :
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `JUICELAB_DASHBOARD_REF` | ref git tirée (SHA conseillé en prod, sinon `main`) | `main` |
+| `JUICELAB_REPO_URL` | URL du dépôt juicelab source | `https://github.com/mo0ogly/juicelab.git` |
+
+Le répertoire cible par défaut est `.juicelab-dashboard/` à la racine du dépôt
+(ou `JUICELAB_DASHBOARD_DIR`). Une fois le dashboard up, pense à pointer
+`JUICELAB_DASHBOARD_URL` dessus (§ 4).
+
+> Anti-pattern : ne **jamais** déployer un second dashboard « pour PwnzzAI ».
+> Une seule instance, deux produits clients — sinon le prof voit ses élèves
+> coupés en deux bases SQLite distinctes.
+
+---
+
+## 6. Côté élève : comment ça s'utilise
 
 1. Ouvrir `http://localhost:8095` et naviguer vers un lab (ex. *Direct Prompt
    Injection*).
@@ -162,7 +200,7 @@ survivent aux rechargements.
 
 ---
 
-## 6. Côté prof : ce qui remonte
+## 7. Côté prof : ce qui remonte
 
 Le coach envoie au dashboard les événements suivants, via le contrat public
 `POST /api/sync` (le même que Juice Shop) :
@@ -182,7 +220,7 @@ exactement comme pour un TD Juice Shop.
 
 ---
 
-## 7. Choisir le modèle du juge
+## 8. Choisir le modèle du juge
 
 Le juge est le cœur de la valeur pédagogique. Sa fiabilité dépend
 directement de la taille du modèle :
@@ -199,7 +237,7 @@ par `COACH_JUDGE_MODEL`.
 
 ---
 
-## 8. Dépannage
+## 9. Dépannage
 
 | Symptôme | Cause probable | Solution |
 |---|---|---|
@@ -217,7 +255,7 @@ relancer le `pull`.
 
 ---
 
-## 9. Pourquoi ça résiste aux évolutions d'OWASP
+## 10. Pourquoi ça résiste aux évolutions d'OWASP
 
 Le proxy ne connaît **aucune route interne** de PwnzzAI : il transmet tout et
 n'injecte qu'une balise `<script>`. La capture de conversation est générique
