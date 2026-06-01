@@ -58,6 +58,16 @@ The coach needs no knowledge of PwnzzAI's internal routes, so upstream updates
 never break it — bump `PWNZZAI_COMMIT` and rebuild. Full internals:
 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
+## Screenshots
+
+PwnzzAI cohorts report to the same central JuiceLab teacher dashboard. Teacher view of a cohort matrix (light theme; a light/dark toggle sits in the topbar):
+
+![Teacher dashboard - cohort matrix](docs/img/prof-dashboard-light.png)
+
+Same matrix in dark theme:
+
+![Teacher dashboard - dark theme](docs/img/prof-dashboard-dark.png)
+
 ## Run
 
 This stack is **self-contained** — no PwnzzAI checkout needed:
