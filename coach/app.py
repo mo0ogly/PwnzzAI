@@ -221,6 +221,37 @@ async def coach_judge(req: Request) -> JSONResponse:
         return JSONResponse({"error": "judge unavailable"}, status_code=503)
 
 
+@app.post("/__coach/walkthrough")
+async def coach_walkthrough(req: Request) -> JSONResponse:
+    """Return the lab walkthrough (corrige) ONLY if the transcript proves the
+    student succeeded. The success gate is server-side: the client's local
+    'solved' flag is spoofable, so we re-judge here before revealing the
+    solution, mirroring JuiceLab's solved-gated walkthrough."""
+    body = await _json_body(req)
+    lab = LABS_BY_KEY.get(str(body.get("lab_key", "")))
+    if lab is None:
+        return JSONResponse({"error": "unknown lab_key"}, status_code=400)
+    transcript = body.get("transcript") or []
+    if not transcript:
+        return JSONResponse(
+            {"error": "empty transcript", "success": False}, status_code=400
+        )
+    lang = "fr" if str(body.get("lang", "fr")).lower().startswith("fr") else "en"
+    try:
+        verdict = await llm_judge.judge(lab=lab, transcript=transcript)
+        if not verdict.get("success"):
+            return JSONResponse(
+                {"error": "solve_first", "success": False,
+                 "reason": verdict.get("reason", "")},
+                status_code=403,
+            )
+        walkthrough = await llm_judge.debrief(lab=lab, transcript=transcript, lang=lang)
+        return JSONResponse({"success": True, "walkthrough": walkthrough})
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("walkthrough failed: %s", exc)
+        return JSONResponse({"error": "walkthrough unavailable"}, status_code=503)
+
+
 @app.post("/__coach/event")
 async def coach_event(req: Request) -> JSONResponse:
     body = await _json_body(req)
@@ -233,6 +264,38 @@ async def coach_event(req: Request) -> JSONResponse:
     )
     status = 201 if result.get("ok") else 202
     return JSONResponse(result, status_code=status)
+
+
+@app.get("/__coach/proof")
+async def coach_proof(
+    lab_key: str = "", student_token: str = "", student_name: str = "", lang: str = "fr"
+) -> Response:
+    """Relay a signed lab proof from the dashboard as a markdown download.
+
+    The dashboard signs (HMAC-SHA256) and the coach only forwards: no
+    secret lives here. A proof exists only once the dashboard has received
+    the lab's challenge_solved event.
+    """
+    lab = LABS_BY_KEY.get(lab_key)
+    if lab is None:
+        return JSONResponse({"error": "unknown lab_key"}, status_code=400)
+    lang = "fr" if str(lang).lower().startswith("fr") else "en"
+    status, body, filename = await dash.fetch_proof(
+        student_token=student_token.strip(),
+        student_name=student_name.strip(),
+        lab=lab,
+        lang=lang,
+    )
+    if status != 200:
+        return JSONResponse({"error": body}, status_code=status)
+    return Response(
+        content=body,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @app.get("/__coach/static/{filename}")

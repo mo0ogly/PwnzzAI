@@ -130,6 +130,9 @@
       return post("/hint", { lab_key: key, level: level, lang: lang, transcript: transcript });
     },
     judge: function (key, transcript) { return post("/judge", { lab_key: key, transcript: transcript }); },
+    walkthrough: function (key, transcript, lang) {
+      return post("/walkthrough", { lab_key: key, transcript: transcript, lang: lang });
+    },
 
     sendEvent: function (type, key, data) {
       var ev = {
@@ -142,6 +145,39 @@
         return res.body;
       }).catch(function () { enqueue(ev); return { ok: false, queued: true }; });
     },
+    // Reliable best-effort event for page unload (session_end). A normal
+    // fetch is killed when the tab closes; sendBeacon survives. Falls back
+    // to a keepalive fetch where Beacon is unavailable.
+    sendBeacon: function (type, key, data) {
+      var ev = {
+        event_type: type, challenge_key: key, data: data || {},
+        student_token: window.CoachState.token(),
+        client_timestamp: new Date().toISOString()
+      };
+      var url = BASE + "/event";
+      try {
+        if (navigator && navigator.sendBeacon) {
+          var blob = new Blob([JSON.stringify(ev)], { type: "application/json" });
+          if (navigator.sendBeacon(url, blob)) return true;
+        }
+      } catch (e) { /* fall through */ }
+      try {
+        origFetch(url, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ev), keepalive: true
+        }).catch(function () { enqueue(ev); });
+      } catch (e) { enqueue(ev); }
+      return false;
+    },
+    // Absolute URL of a signed lab proof (markdown download). The dashboard
+    // signs it; cohort is server-side. Returns a string to open/download.
+    proofUrl: function (key, lang) {
+      return BASE + "/proof?lab_key=" + encodeURIComponent(key)
+        + "&student_token=" + encodeURIComponent(window.CoachState.token())
+        + "&student_name=" + encodeURIComponent(window.CoachState.identity())
+        + "&lang=" + encodeURIComponent(lang || "fr");
+    },
+
     flushQueue: function () {
       var q = loadQueue();
       if (!q.length) return;

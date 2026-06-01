@@ -23,7 +23,7 @@
   function emptyState() {
     return {
       schema_version: 1,
-      student: { token: uuid(), language: "fr" },
+      student: { token: uuid(), language: "fr", identity: "" },
       challenges: {},
       badges_earned: []
     };
@@ -76,6 +76,12 @@
     token: function () { return state.student.token; },
     lang: function () { return state.student.language || "fr"; },
     setLang: function (l) { state.student.language = l; save(); },
+    identity: function () { return state.student.identity || ""; },
+    setIdentity: function (id) {
+      var v = (id || "").trim();
+      if (v && v !== state.student.identity) { state.student.identity = v; save(); }
+      return state.student.identity || "";
+    },
 
     challenge: challenge,
     scoreFor: scoreFor,
@@ -103,6 +109,10 @@
     setSolved: function (key, verdict) {
       var c = challenge(key); c.solved = true; c.verdict = verdict; save();
     },
+    // Cache the post-success walkthrough so it survives a reload (the
+    // in-memory transcript needed to regenerate it does not).
+    setWalkthrough: function (key, text) { challenge(key).walkthrough = text; save(); },
+    walkthrough: function (key) { return challenge(key).walkthrough || ""; },
 
     // --- badges ---
     badgesEarned: function () { return state.badges_earned.slice(); },

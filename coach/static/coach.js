@@ -168,7 +168,7 @@
         Api.sendEvent("hint_revealed", currentLab.key, {
           level: "N" + level, cost_pct: res.body.cost_pct,
           score_after: St.scoreFor(currentLab.key, costByLevel),
-          student_email: studentName()
+          student_email: identity()
         });
         render();
       })
@@ -199,7 +199,7 @@
         if (phase === "after") {
           Api.sendEvent("journal_filled", currentLab.key, {
             length: ta.value.length, after: ta.value.slice(0, 4000),
-            student_email: studentName()
+            student_email: identity()
           });
           maybeAwardBadges();
         }
@@ -259,7 +259,7 @@
       St.setQuizScore(currentLab.key, res.body.score);
       Api.sendEvent("quiz_completed", currentLab.key, {
         score: res.body.score, correct: res.body.correct_count, total: res.body.total,
-        student_email: studentName()
+        student_email: identity()
       });
       render();
     }).catch(function () { ui.quizStatus.textContent = t("unavailable"); ui.quizStatus.className = "coach-status coach-warn"; });
@@ -300,7 +300,13 @@
       if (ch.solved) {
         var v = el("div", "coach-verdict coach-ok");
         v.appendChild(el("strong", null, t("solved") + " ✓  —  " + t("score") + " " + St.scoreFor(currentLab.key, costByLevel) + "/100"));
+        if (config && config.dashboard_configured) {
+          v.appendChild(proofButton(currentLab.key));
+        }
+        v.appendChild(walkthroughButton(currentLab.key));
         c.appendChild(v);
+        ui.wtBox = el("div", "coach-walkthrough"); c.appendChild(ui.wtBox);
+        if (St.walkthrough(currentLab.key)) renderWalkthrough(St.walkthrough(currentLab.key));
       }
     }
 
@@ -324,6 +330,9 @@
         row.appendChild(el("span", "coach-lab-row-name", labName(lab)));
         row.appendChild(el("span", "coach-chip " + (lch.solved ? "coach-chip-ok" : "coach-chip-pending"),
           lch.solved ? t("solved") : (lch.hints.length + " " + t("hints_consumed"))));
+        if (lch.solved && config && config.dashboard_configured) {
+          row.appendChild(proofButton(lab.key));
+        }
         list.appendChild(row);
       });
       c.appendChild(list);
@@ -341,6 +350,8 @@
     });
     c.appendChild(bgrid);
 
+    if (config && config.dashboard_configured) c.appendChild(identityBlock());
+
     var line = el("div", "coach-cohort");
     if (config && config.dashboard_configured) line.textContent = t("cohort") + ": " + (config.cohort_id || "-");
     else line.textContent = t("dashboard_off");
@@ -351,6 +362,97 @@
     s.appendChild(el("span", "coach-stat-val", value));
     s.appendChild(el("span", "coach-stat-lbl", label));
     return s;
+  }
+
+  // Download the dashboard-signed proof for a solved lab. The dashboard
+  // signs (HMAC) and returns markdown on 200, or a JSON error otherwise
+  // (e.g. no events yet, proof signing disabled). We surface that error on
+  // the button rather than downloading an error page.
+  function proofButton(key) {
+    var btn = el("button", "coach-btn coach-btn-ghost", t("proof_download"));
+    btn.addEventListener("click", function () {
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = t("proof_preparing");
+      fetch(Api.proofUrl(key, St.lang())).then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (j) {
+            throw new Error((j && j.error) || ("HTTP " + r.status));
+          });
+        }
+        var fn = "pwnzzai-" + key + ".md";
+        var m = (r.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/);
+        if (m) fn = m[1];
+        return r.blob().then(function (blob) {
+          var url = URL.createObjectURL(blob);
+          var a = el("a"); a.href = url; a.download = fn;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+          btn.textContent = label; btn.disabled = false;
+        });
+      }).catch(function () {
+        btn.textContent = t("proof_error"); btn.disabled = false;
+      });
+    });
+    return btn;
+  }
+
+  // Reveal the walkthrough (corrige). Server re-judges the transcript and
+  // only returns it on a successful verdict, so this stays gated even though
+  // the button is shown from the client's solved flag. Cached once fetched
+  // because the in-memory transcript is gone after a reload.
+  function walkthroughButton(key) {
+    var btn = el("button", "coach-btn coach-btn-ghost", t("walkthrough_show"));
+    btn.addEventListener("click", function () {
+      if (St.walkthrough(key)) { renderWalkthrough(St.walkthrough(key)); return; }
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = t("walkthrough_loading");
+      Api.walkthrough(key, Api.transcript(key), St.lang()).then(function (res) {
+        btn.textContent = label; btn.disabled = false;
+        if (res.ok && res.body && res.body.walkthrough) {
+          St.setWalkthrough(key, res.body.walkthrough);
+          renderWalkthrough(res.body.walkthrough);
+        } else if (res.body && res.body.error === "solve_first") {
+          renderWalkthrough(t("walkthrough_gate"));
+        } else {
+          renderWalkthrough(t("unavailable"));
+        }
+      }).catch(function () {
+        btn.textContent = label; btn.disabled = false;
+        renderWalkthrough(t("unavailable"));
+      });
+    });
+    return btn;
+  }
+
+  // Render walkthrough markdown as readable text blocks (no HTML injection:
+  // split on blank lines, keep bullets as-is).
+  function renderWalkthrough(md) {
+    if (!ui.wtBox) return;
+    ui.wtBox.innerHTML = "";
+    ui.wtBox.appendChild(el("span", "coach-label", t("walkthrough_title")));
+    String(md).split(/\n{2,}/).forEach(function (block) {
+      var txt = block.trim();
+      if (txt) ui.wtBox.appendChild(el("p", "coach-wt-block", txt));
+    });
+  }
+
+  // Identity used to attribute dashboard events. Auto-filled from the
+  // PwnzzAI navbar when the student is logged in; otherwise the student
+  // sets it here once. Read-only on the OWASP side.
+  function identityBlock() {
+    var wrap = el("div", "coach-identity");
+    var cur = identity();
+    if (cur) {
+      wrap.appendChild(el("span", "coach-muted", t("identified_as") + ": " + cur));
+      return wrap;
+    }
+    wrap.appendChild(el("span", "coach-label", t("identity_prompt")));
+    var inp = el("input", "coach-input");
+    inp.type = "text"; inp.placeholder = t("identity_ph");
+    var btn = el("button", "coach-btn", t("save"));
+    btn.addEventListener("click", function () { if (St.setIdentity(inp.value)) render(); });
+    wrap.appendChild(inp); wrap.appendChild(btn);
+    return wrap;
   }
   function toggleConv(c) {
     if (!ui.convBox) return;
@@ -391,7 +493,7 @@
         St.setSolved(currentLab.key, v.verdict);
         Api.sendEvent("challenge_solved", currentLab.key, {
           score: St.scoreFor(currentLab.key, costByLevel), verdict: v.verdict,
-          rationale: v.reason, judged_by: "llm", student_email: studentName()
+          rationale: v.reason, judged_by: "llm", student_email: identity()
         });
         maybeAwardBadges();
       }
@@ -401,17 +503,33 @@
   function maybeAwardBadges() {
     var newly = St.reevaluateBadges();
     newly.forEach(function (id) {
-      Api.sendEvent("badge_earned", currentLab ? currentLab.key : null, { badge: id, student_email: studentName() });
+      Api.sendEvent("badge_earned", currentLab ? currentLab.key : null, { badge: id, student_email: identity() });
     });
   }
 
-  function studentName() {
+  // Read the username PwnzzAI renders in its own navbar, read-only, without
+  // touching the OWASP code. PwnzzAI auth is a server-side Flask session
+  // (signed httpOnly cookie, not JS-readable), so unlike Juice Shop's JWT
+  // we cannot parse a token; the rendered name is the only browser-exposed
+  // identity. Generic — any account, not a hardcoded user list.
+  function detectPwnzzUser() {
     try {
-      var nav = document.querySelector(".navbar, nav");
-      if (!nav) return "";
-      var m = nav.textContent.match(/(alice|bob)/i);
-      return m ? m[1].toLowerCase() : "";
-    } catch (e) { return ""; }
+      var span = document.querySelector(".welcome-text");
+      if (span) {
+        var m = span.textContent.match(/[:,]\s*(.+?)\s*!?\s*$/);
+        if (m && m[1]) return m[1].trim();
+      }
+    } catch (e) { /* ignore */ }
+    return "";
+  }
+
+  // Resolved student identity for dashboard events: the PwnzzAI username if
+  // detected (cached so it survives navigation to a page with no navbar),
+  // otherwise the explicit identity the student typed into the coach.
+  function identity() {
+    var detected = detectPwnzzUser();
+    if (detected) return St.setIdentity(detected);
+    return St.identity();
   }
 
   // ---- boot ----
@@ -427,11 +545,29 @@
       buildShell();
       Api.flushQueue();
       Api.sendEvent("session_start", currentLab ? currentLab.key : null, {
-        path: window.location.pathname, student_email: studentName()
+        path: window.location.pathname, student_email: identity()
       });
+      installSessionEnd();
     }).catch(function () {
       config = { labs: [], dashboard_configured: false };
       buildShell();
+    });
+  }
+
+  // Emit session_end exactly once when the tab is closed or the student
+  // navigates away, so the teacher dashboard can measure real session
+  // duration. pagehide fires on close/navigation (and mobile bfcache);
+  // sendBeacon survives unload where a normal fetch is dropped. We avoid
+  // visibilitychange on purpose: a quick alt-tab is not the end of a
+  // session and would cut it short.
+  function installSessionEnd() {
+    var sent = false;
+    window.addEventListener("pagehide", function () {
+      if (sent) return;
+      sent = true;
+      Api.sendBeacon("session_end", currentLab ? currentLab.key : null, {
+        path: window.location.pathname, student_email: identity()
+      });
     });
   }
 

@@ -59,7 +59,17 @@
       cohort: "Cohorte",
       unavailable: "Service coach indisponible (Ollama ?).",
       total_score: "Score moyen",
-      labs_solved: "labs reussis"
+      labs_solved: "labs reussis",
+      proof_download: "Telecharger la preuve",
+      proof_preparing: "Preparation...",
+      proof_error: "Preuve indisponible",
+      identified_as: "Identifie comme",
+      identity_prompt: "Ton identifiant (pour le suivi prof)",
+      identity_ph: "ex. ton login PwnzzAI ou ton email",
+      walkthrough_show: "Voir le corrige",
+      walkthrough_title: "Corrige",
+      walkthrough_loading: "Generation du corrige...",
+      walkthrough_gate: "Resous d'abord le lab pour debloquer le corrige."
     },
     en: {
       title: "JuiceLab Coach",
@@ -113,7 +123,17 @@
       cohort: "Cohort",
       unavailable: "Coach service unavailable (Ollama?).",
       total_score: "Average score",
-      labs_solved: "labs solved"
+      labs_solved: "labs solved",
+      proof_download: "Download proof",
+      proof_preparing: "Preparing...",
+      proof_error: "Proof unavailable",
+      identified_as: "Identified as",
+      identity_prompt: "Your identifier (for teacher tracking)",
+      identity_ph: "e.g. your PwnzzAI login or email",
+      walkthrough_show: "Show walkthrough",
+      walkthrough_title: "Walkthrough",
+      walkthrough_loading: "Generating walkthrough...",
+      walkthrough_gate: "Solve the lab first to unlock the walkthrough."
     }
   };
 
