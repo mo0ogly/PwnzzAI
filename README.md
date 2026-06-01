@@ -26,21 +26,37 @@ teacher matrix as Juice Shop.
 
 ## Architecture
 
+The coach is a **transparent reverse proxy** (`pwnzzai-coach`, FastAPI) placed
+in front of the untouched OWASP product (`pwnzzai-app`). Every student request
+flows through the coach, which forwards it as-is to the upstream and injects a
+single `coach.js` `<script>` into the returned HTML. The coach talks to a local
+`ollama` for the LLM-as-judge and adaptive hints, and reports cohort events to
+the **central JuiceLab teacher dashboard** — the same shared instance Juice Shop
+students report to. The dashboard server is never vendored here; PwnzzAI is only
+a client.
+
 ```mermaid
 flowchart LR
-    B["Student browser :8095"]
-    C["pwnzzai-coach<br/>proxy + API"]
-    P["pwnzzai-app :8080<br/>(OWASP, cloned at build)"]
-    O["ollama"]
-    D["JuiceLab dashboard<br/>/api/sync"]
+    B["Student browser<br/>http://localhost:8095"]
+
+    subgraph stack["docker compose (autonomous)"]
+        C["pwnzzai-coach<br/>FastAPI sidecar<br/>:8090 (host 8095)"]
+        P["pwnzzai-app<br/>:8080 (host 8090)<br/>OWASP product, cloned at build"]
+        O["ollama<br/>local LLM"]
+    end
+
+    D["Central JuiceLab dashboard<br/>POST /api/sync"]
+
     B -->|all requests| C
-    C -->|forwarded as-is| P
-    C -->|judge + hints| O
-    C -->|cohort events| D
-    C -. injects coach.js .-> B
+    C -->|"forwarded as-is<br/>PWNZZAI_UPSTREAM"| P
+    C <-->|"judge + adaptive hints<br/>(cost 5/10/20/35/50)"| O
+    C -->|"cohort events<br/>X-Instance-Label: pwnzzai"| D
+    C -. "injects coach.js<br/>(transcript capture, panel)" .-> B
 ```
 
-Full internals: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+The coach needs no knowledge of PwnzzAI's internal routes, so upstream updates
+never break it — bump `PWNZZAI_COMMIT` and rebuild. Full internals:
+[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ## Run
 
