@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -134,15 +135,24 @@ async def coach_quiz_questions(lab_key: str = "") -> JSONResponse:
     questions = QUIZ.get(lab_key)
     if not questions:
         return JSONResponse({"error": "no quiz for this lab"}, status_code=404)
-    stripped = [
-        {
-            "question_fr": q.get("question_fr", ""),
-            "question_en": q.get("question_en", ""),
-            "options_fr": q.get("options_fr", []),
-            "options_en": q.get("options_en", []),
-        }
-        for q in questions
-    ]
+    stripped = []
+    for q in questions:
+        # Free-text questions ship without their expected_keywords; MCQ
+        # without correct/explanation. Scoring stays server-side either way.
+        if q.get("type") == "text":
+            stripped.append({
+                "type": "text",
+                "question_fr": q.get("question_fr", ""),
+                "question_en": q.get("question_en", ""),
+            })
+        else:
+            stripped.append({
+                "type": "mcq",
+                "question_fr": q.get("question_fr", ""),
+                "question_en": q.get("question_en", ""),
+                "options_fr": q.get("options_fr", []),
+                "options_en": q.get("options_en", []),
+            })
     return JSONResponse({"lab_key": lab_key, "questions": stripped})
 
 
@@ -164,15 +174,26 @@ async def coach_quiz_score(req: Request) -> JSONResponse:
     correct_count = 0
     for i, q in enumerate(questions):
         given = answers[i] if i < len(answers) else None
-        ok = given == q.get("correct")
+        if q.get("type") == "text":
+            # Keyword scoring, accent- and case-insensitive. The student
+            # needs at least min_keywords distinct expected terms to pass.
+            keywords = q.get(f"expected_keywords_{lang}", [])
+            text = _norm(str(given or ""))
+            matched = sorted({k for k in keywords if _norm(k) and _norm(k) in text})
+            ok = len(matched) >= int(q.get("min_keywords", 2))
+            entry: dict[str, Any] = {
+                "type": "text", "ok": ok, "matched": len(matched),
+                "explanation": q.get(f"explanation_{lang}", ""),
+            }
+        else:
+            ok = given == q.get("correct")
+            entry = {
+                "type": "mcq", "correct": q.get("correct"), "given": given,
+                "ok": ok, "explanation": q.get(f"explanation_{lang}", ""),
+            }
         if ok:
             correct_count += 1
-        per_q.append({
-            "correct": q.get("correct"),
-            "given": given,
-            "ok": ok,
-            "explanation": q.get(f"explanation_{lang}", ""),
-        })
+        per_q.append(entry)
     score = round(correct_count / len(questions) * 100) if questions else 0
     return JSONResponse({
         "lab_key": lab_key, "score": score,
@@ -221,6 +242,57 @@ async def coach_judge(req: Request) -> JSONResponse:
         return JSONResponse({"error": "judge unavailable"}, status_code=503)
 
 
+@app.post("/__coach/walkthrough")
+async def coach_walkthrough(req: Request) -> JSONResponse:
+    """Return the lab walkthrough (corrige) ONLY if the transcript proves the
+    student succeeded. The success gate is server-side: the client's local
+    'solved' flag is spoofable, so we re-judge here before revealing the
+    solution, mirroring JuiceLab's solved-gated walkthrough."""
+    body = await _json_body(req)
+    lab = LABS_BY_KEY.get(str(body.get("lab_key", "")))
+    if lab is None:
+        return JSONResponse({"error": "unknown lab_key"}, status_code=400)
+    transcript = body.get("transcript") or []
+    if not transcript:
+        return JSONResponse(
+            {"error": "empty transcript", "success": False}, status_code=400
+        )
+    lang = "fr" if str(body.get("lang", "fr")).lower().startswith("fr") else "en"
+    try:
+        verdict = await llm_judge.judge(lab=lab, transcript=transcript)
+        if not verdict.get("success"):
+            return JSONResponse(
+                {"error": "solve_first", "success": False,
+                 "reason": verdict.get("reason", "")},
+                status_code=403,
+            )
+        walkthrough = await llm_judge.debrief(lab=lab, transcript=transcript, lang=lang)
+        return JSONResponse({"success": True, "walkthrough": walkthrough})
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("walkthrough failed: %s", exc)
+        return JSONResponse({"error": "walkthrough unavailable"}, status_code=503)
+
+
+@app.post("/__coach/join")
+async def coach_join(req: Request) -> JSONResponse:
+    """Enrol the student into the cohort (email + dashboard join workflow).
+    cohort_id is server-side; the student only sends their email."""
+    body = await _json_body(req)
+    status, data = await dash.cohort_join(
+        student_token=str(body.get("student_token", "")).strip(),
+        email=str(body.get("email", "")).strip(),
+    )
+    return JSONResponse(data, status_code=status)
+
+
+@app.get("/__coach/join/status")
+async def coach_join_status(student_token: str = "") -> JSONResponse:
+    """Poll the student's enrolment status. Always 200; the dashboard verdict
+    is in the body so the sidebar can degrade gracefully when offline."""
+    data = await dash.student_status(student_token=student_token.strip())
+    return JSONResponse(data)
+
+
 @app.post("/__coach/event")
 async def coach_event(req: Request) -> JSONResponse:
     body = await _json_body(req)
@@ -235,6 +307,38 @@ async def coach_event(req: Request) -> JSONResponse:
     return JSONResponse(result, status_code=status)
 
 
+@app.get("/__coach/proof")
+async def coach_proof(
+    lab_key: str = "", student_token: str = "", student_name: str = "", lang: str = "fr"
+) -> Response:
+    """Relay a signed lab proof from the dashboard as a markdown download.
+
+    The dashboard signs (HMAC-SHA256) and the coach only forwards: no
+    secret lives here. A proof exists only once the dashboard has received
+    the lab's challenge_solved event.
+    """
+    lab = LABS_BY_KEY.get(lab_key)
+    if lab is None:
+        return JSONResponse({"error": "unknown lab_key"}, status_code=400)
+    lang = "fr" if str(lang).lower().startswith("fr") else "en"
+    status, body, filename = await dash.fetch_proof(
+        student_token=student_token.strip(),
+        student_name=student_name.strip(),
+        lab=lab,
+        lang=lang,
+    )
+    if status != 200:
+        return JSONResponse({"error": body}, status_code=status)
+    return Response(
+        content=body,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 @app.get("/__coach/static/{filename}")
 async def coach_static(filename: str) -> Response:
     safe = Path(filename).name  # strip any path traversal
@@ -245,6 +349,12 @@ async def coach_static(filename: str) -> Response:
         "text/css" if safe.endswith(".css") else "application/octet-stream"
     )
     return FileResponse(target, media_type=media)
+
+
+def _norm(s: str) -> str:
+    """Lowercase and strip accents for accent-insensitive keyword matching."""
+    decomposed = unicodedata.normalize("NFKD", str(s).lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
 async def _json_body(req: Request) -> dict[str, Any]:

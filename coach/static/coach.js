@@ -168,7 +168,7 @@
         Api.sendEvent("hint_revealed", currentLab.key, {
           level: "N" + level, cost_pct: res.body.cost_pct,
           score_after: St.scoreFor(currentLab.key, costByLevel),
-          student_email: studentName()
+          student_email: identity()
         });
         render();
       })
@@ -199,7 +199,7 @@
         if (phase === "after") {
           Api.sendEvent("journal_filled", currentLab.key, {
             length: ta.value.length, after: ta.value.slice(0, 4000),
-            student_email: studentName()
+            student_email: identity()
           });
           maybeAwardBadges();
         }
@@ -228,16 +228,24 @@
       var block = el("div", "coach-quiz-q");
       block.appendChild(el("p", "coach-quiz-question",
         (qi + 1) + ". " + (St.lang() === "fr" ? q.question_fr : q.question_en)));
-      var opts = St.lang() === "fr" ? q.options_fr : q.options_en;
-      opts.forEach(function (opt, oi) {
-        var lab = el("label", "coach-quiz-opt");
-        var radio = el("input");
-        radio.type = "radio"; radio.name = "q" + qi; radio.value = oi;
-        if (ui.quizCache.answers[qi] === oi) radio.checked = true;
-        radio.addEventListener("change", function () { ui.quizCache.answers[qi] = oi; });
-        lab.appendChild(radio); lab.appendChild(el("span", null, opt));
-        block.appendChild(lab);
-      });
+      if (q.type === "text") {
+        var ta = el("textarea", "coach-textarea");
+        ta.placeholder = t("quiz_text_ph");
+        if (typeof ui.quizCache.answers[qi] === "string") ta.value = ui.quizCache.answers[qi];
+        ta.addEventListener("input", function () { ui.quizCache.answers[qi] = ta.value; });
+        block.appendChild(ta);
+      } else {
+        var opts = St.lang() === "fr" ? q.options_fr : q.options_en;
+        opts.forEach(function (opt, oi) {
+          var lab = el("label", "coach-quiz-opt");
+          var radio = el("input");
+          radio.type = "radio"; radio.name = "q" + qi; radio.value = oi;
+          if (ui.quizCache.answers[qi] === oi) radio.checked = true;
+          radio.addEventListener("change", function () { ui.quizCache.answers[qi] = oi; });
+          lab.appendChild(radio); lab.appendChild(el("span", null, opt));
+          block.appendChild(lab);
+        });
+      }
       c.appendChild(block);
     });
     ui.quizStatus = el("div", "coach-status");
@@ -250,7 +258,11 @@
   function submitQuiz() {
     var cache = ui.quizCache;
     if (!cache) return;
-    if (cache.answers.filter(function (a) { return a != null; }).length < cache.questions.length) {
+    var answered = cache.questions.every(function (q, qi) {
+      var a = cache.answers[qi];
+      return q.type === "text" ? (typeof a === "string" && a.trim().length > 0) : (a != null);
+    });
+    if (!answered) {
       ui.quizStatus.textContent = t("quiz_pick"); ui.quizStatus.className = "coach-status coach-warn"; return;
     }
     Api.quizScore(currentLab.key, cache.answers, St.lang()).then(function (res) {
@@ -259,7 +271,7 @@
       St.setQuizScore(currentLab.key, res.body.score);
       Api.sendEvent("quiz_completed", currentLab.key, {
         score: res.body.score, correct: res.body.correct_count, total: res.body.total,
-        student_email: studentName()
+        student_email: identity()
       });
       render();
     }).catch(function () { ui.quizStatus.textContent = t("unavailable"); ui.quizStatus.className = "coach-status coach-warn"; });
@@ -300,7 +312,13 @@
       if (ch.solved) {
         var v = el("div", "coach-verdict coach-ok");
         v.appendChild(el("strong", null, t("solved") + " ✓  —  " + t("score") + " " + St.scoreFor(currentLab.key, costByLevel) + "/100"));
+        if (config && config.dashboard_configured) {
+          v.appendChild(proofButton(currentLab.key));
+        }
+        v.appendChild(walkthroughButton(currentLab.key));
         c.appendChild(v);
+        ui.wtBox = el("div", "coach-walkthrough"); c.appendChild(ui.wtBox);
+        if (St.walkthrough(currentLab.key)) renderWalkthrough(St.walkthrough(currentLab.key));
       }
     }
 
@@ -324,6 +342,9 @@
         row.appendChild(el("span", "coach-lab-row-name", labName(lab)));
         row.appendChild(el("span", "coach-chip " + (lch.solved ? "coach-chip-ok" : "coach-chip-pending"),
           lch.solved ? t("solved") : (lch.hints.length + " " + t("hints_consumed"))));
+        if (lch.solved && config && config.dashboard_configured) {
+          row.appendChild(proofButton(lab.key));
+        }
         list.appendChild(row);
       });
       c.appendChild(list);
@@ -341,6 +362,8 @@
     });
     c.appendChild(bgrid);
 
+    if (config && config.dashboard_configured) c.appendChild(joinBlock());
+
     var line = el("div", "coach-cohort");
     if (config && config.dashboard_configured) line.textContent = t("cohort") + ": " + (config.cohort_id || "-");
     else line.textContent = t("dashboard_off");
@@ -351,6 +374,137 @@
     s.appendChild(el("span", "coach-stat-val", value));
     s.appendChild(el("span", "coach-stat-lbl", label));
     return s;
+  }
+
+  // Download the dashboard-signed proof for a solved lab. The dashboard
+  // signs (HMAC) and returns markdown on 200, or a JSON error otherwise
+  // (e.g. no events yet, proof signing disabled). We surface that error on
+  // the button rather than downloading an error page.
+  function proofButton(key) {
+    var btn = el("button", "coach-btn coach-btn-ghost", t("proof_download"));
+    btn.addEventListener("click", function () {
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = t("proof_preparing");
+      fetch(Api.proofUrl(key, St.lang())).then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (j) {
+            throw new Error((j && j.error) || ("HTTP " + r.status));
+          });
+        }
+        var fn = "pwnzzai-" + key + ".md";
+        var m = (r.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/);
+        if (m) fn = m[1];
+        return r.blob().then(function (blob) {
+          var url = URL.createObjectURL(blob);
+          var a = el("a"); a.href = url; a.download = fn;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+          btn.textContent = label; btn.disabled = false;
+        });
+      }).catch(function () {
+        btn.textContent = t("proof_error"); btn.disabled = false;
+      });
+    });
+    return btn;
+  }
+
+  // Reveal the walkthrough (corrige). Server re-judges the transcript and
+  // only returns it on a successful verdict, so this stays gated even though
+  // the button is shown from the client's solved flag. Cached once fetched
+  // because the in-memory transcript is gone after a reload.
+  function walkthroughButton(key) {
+    var btn = el("button", "coach-btn coach-btn-ghost", t("walkthrough_show"));
+    btn.addEventListener("click", function () {
+      if (St.walkthrough(key)) { renderWalkthrough(St.walkthrough(key)); return; }
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = t("walkthrough_loading");
+      Api.walkthrough(key, Api.transcript(key), St.lang()).then(function (res) {
+        btn.textContent = label; btn.disabled = false;
+        if (res.ok && res.body && res.body.walkthrough) {
+          St.setWalkthrough(key, res.body.walkthrough);
+          renderWalkthrough(res.body.walkthrough);
+        } else if (res.body && res.body.error === "solve_first") {
+          renderWalkthrough(t("walkthrough_gate"));
+        } else {
+          renderWalkthrough(t("unavailable"));
+        }
+      }).catch(function () {
+        btn.textContent = label; btn.disabled = false;
+        renderWalkthrough(t("unavailable"));
+      });
+    });
+    return btn;
+  }
+
+  // Render walkthrough markdown as readable text blocks (no HTML injection:
+  // split on blank lines, keep bullets as-is).
+  function renderWalkthrough(md) {
+    if (!ui.wtBox) return;
+    ui.wtBox.innerHTML = "";
+    ui.wtBox.appendChild(el("span", "coach-label", t("walkthrough_title")));
+    String(md).split(/\n{2,}/).forEach(function (block) {
+      var txt = block.trim();
+      if (txt) ui.wtBox.appendChild(el("p", "coach-wt-block", txt));
+    });
+  }
+
+  // Cohort enrolment block. The student joins with their email; the teacher
+  // approves in the dashboard, after which the roster shows a name instead
+  // of an anonymous token. Mirrors the JuiceLab cohort-join dialog.
+  function joinBlock() {
+    var wrap = el("div", "coach-identity");
+    var status = St.joinStatus();
+    var email = St.email();
+    if (status === "validated") {
+      wrap.appendChild(el("span", "coach-ok", t("join_validated") + ": " + email));
+      return wrap;
+    }
+    if (status === "pending") {
+      wrap.appendChild(el("span", "coach-muted", t("join_pending") + " (" + email + ")"));
+      return wrap;
+    }
+    if (status === "rejected") wrap.appendChild(el("span", "coach-bad", t("join_rejected")));
+    wrap.appendChild(el("span", "coach-label", t("join_prompt")));
+    var inp = el("input", "coach-input");
+    inp.type = "email"; inp.placeholder = t("join_ph");
+    if (email) inp.value = email;
+    var btn = el("button", "coach-btn", t("join_btn"));
+    var line = el("div", "coach-status");
+    btn.addEventListener("click", function () {
+      var e = inp.value.trim();
+      if (!e || e.indexOf("@") === -1) {
+        line.textContent = t("join_bad_email"); line.className = "coach-status coach-warn"; return;
+      }
+      btn.disabled = true; line.textContent = t("join_sending"); line.className = "coach-status coach-muted";
+      Api.join(e).then(function (res) {
+        btn.disabled = false;
+        if (res.ok && res.body && res.body.ok) {
+          St.setEmail(e); St.setJoinStatus(res.body.status || "pending"); render();
+        } else {
+          var err = res.body && res.body.error;
+          line.textContent = (err && err.indexOf("unknown cohort") !== -1) ? t("join_no_cohort") : (err || t("unavailable"));
+          line.className = "coach-status coach-warn";
+        }
+      }).catch(function () {
+        btn.disabled = false; line.textContent = t("unavailable"); line.className = "coach-status coach-warn";
+      });
+    });
+    wrap.appendChild(inp); wrap.appendChild(btn); wrap.appendChild(line);
+    return wrap;
+  }
+
+  // Poll the dashboard for the enrolment verdict so a teacher approval is
+  // reflected without a manual reload. Stops once validated.
+  function refreshJoinStatus() {
+    if (!config || !config.dashboard_configured) return;
+    if (St.joinStatus() === "validated") return;
+    Api.joinStatus().then(function (res) {
+      var st = res.body && res.body.status;
+      if (st && st !== "unknown" && st !== St.joinStatus()) {
+        St.setJoinStatus(st);
+        if (activeTab === "progress" || !currentLab) render();
+      }
+    }).catch(function () { /* offline: keep local status */ });
   }
   function toggleConv(c) {
     if (!ui.convBox) return;
@@ -391,7 +545,7 @@
         St.setSolved(currentLab.key, v.verdict);
         Api.sendEvent("challenge_solved", currentLab.key, {
           score: St.scoreFor(currentLab.key, costByLevel), verdict: v.verdict,
-          rationale: v.reason, judged_by: "llm", student_email: studentName()
+          rationale: v.reason, judged_by: "llm", student_email: identity()
         });
         maybeAwardBadges();
       }
@@ -401,17 +555,35 @@
   function maybeAwardBadges() {
     var newly = St.reevaluateBadges();
     newly.forEach(function (id) {
-      Api.sendEvent("badge_earned", currentLab ? currentLab.key : null, { badge: id, student_email: studentName() });
+      Api.sendEvent("badge_earned", currentLab ? currentLab.key : null, { badge: id, student_email: identity() });
     });
   }
 
-  function studentName() {
+  // Read the username PwnzzAI renders in its own navbar, read-only, without
+  // touching the OWASP code. PwnzzAI auth is a server-side Flask session
+  // (signed httpOnly cookie, not JS-readable), so unlike Juice Shop's JWT
+  // we cannot parse a token; the rendered name is the only browser-exposed
+  // identity. Generic — any account, not a hardcoded user list.
+  function detectPwnzzUser() {
     try {
-      var nav = document.querySelector(".navbar, nav");
-      if (!nav) return "";
-      var m = nav.textContent.match(/(alice|bob)/i);
-      return m ? m[1].toLowerCase() : "";
-    } catch (e) { return ""; }
+      var span = document.querySelector(".welcome-text");
+      if (span) {
+        var m = span.textContent.match(/[:,]\s*(.+?)\s*!?\s*$/);
+        if (m && m[1]) return m[1].trim();
+      }
+    } catch (e) { /* ignore */ }
+    return "";
+  }
+
+  // Resolved student identity for dashboard events. Priority: the cohort
+  // enrolment email (the canonical identity the teacher sees in the roster),
+  // then the PwnzzAI navbar username (cached), then any earlier value.
+  function identity() {
+    var email = St.email();
+    if (email) return email;
+    var detected = detectPwnzzUser();
+    if (detected) return St.setIdentity(detected);
+    return St.identity();
   }
 
   // ---- boot ----
@@ -427,11 +599,31 @@
       buildShell();
       Api.flushQueue();
       Api.sendEvent("session_start", currentLab ? currentLab.key : null, {
-        path: window.location.pathname, student_email: studentName()
+        path: window.location.pathname, student_email: identity()
       });
+      installSessionEnd();
+      refreshJoinStatus();
+      window.setInterval(refreshJoinStatus, 60000);
     }).catch(function () {
       config = { labs: [], dashboard_configured: false };
       buildShell();
+    });
+  }
+
+  // Emit session_end exactly once when the tab is closed or the student
+  // navigates away, so the teacher dashboard can measure real session
+  // duration. pagehide fires on close/navigation (and mobile bfcache);
+  // sendBeacon survives unload where a normal fetch is dropped. We avoid
+  // visibilitychange on purpose: a quick alt-tab is not the end of a
+  // session and would cut it short.
+  function installSessionEnd() {
+    var sent = false;
+    window.addEventListener("pagehide", function () {
+      if (sent) return;
+      sent = true;
+      Api.sendBeacon("session_end", currentLab ? currentLab.key : null, {
+        path: window.location.pathname, student_email: identity()
+      });
     });
   }
 

@@ -22,7 +22,9 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -109,3 +111,103 @@ async def forward_event(
     except Exception as exc:  # noqa: BLE001
         LOGGER.warning("dashboard unreachable: %s", exc)
         return {"ok": False, "error": "dashboard unreachable", "queued": True}
+
+
+async def cohort_join(*, student_token: str, email: str) -> tuple[int, dict[str, Any]]:
+    """Enrol a student into the cohort via the dashboard join workflow.
+
+    cohort_id is the server-side authoritative value (env), so the student
+    only supplies their email. The dashboard creates a 'pending' request the
+    teacher then approves; until then the sync gate holds the student's
+    events (the browser keeps its offline queue and retries).
+    """
+    if not DASHBOARD_URL:
+        return 503, {"error": "dashboard not configured"}
+    payload = {
+        "cohort_id": COHORT_ID,
+        "student_token": student_token,
+        "email": email,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=DASHBOARD_TIMEOUT) as client:
+            resp = await client.post(
+                f"{DASHBOARD_URL}/api/cohort/join", json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("cohort join failed: %s", exc)
+        return 502, {"error": "dashboard unreachable"}
+    try:
+        body = resp.json()
+    except Exception:  # noqa: BLE001
+        body = {"error": resp.text[:200]}
+    LOGGER.info("join cohort=%s status=%s http=%s",
+                COHORT_ID, body.get("status"), resp.status_code)
+    return resp.status_code, body
+
+
+async def student_status(*, student_token: str) -> dict[str, Any]:
+    """Poll the student's enrolment status (unknown/pending/validated/rejected)."""
+    if not DASHBOARD_URL:
+        return {"status": "unknown", "error": "dashboard not configured"}
+    url = (f"{DASHBOARD_URL}/api/student/status"
+           f"?student_token={quote(student_token)}&cohort={quote(COHORT_ID)}")
+    try:
+        async with httpx.AsyncClient(timeout=DASHBOARD_TIMEOUT) as client:
+            resp = await client.get(url)
+        return resp.json()
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("student status failed: %s", exc)
+        return {"status": "unknown", "error": "dashboard unreachable"}
+
+
+async def fetch_proof(
+    *,
+    student_token: str,
+    student_name: str,
+    lab: dict[str, Any],
+    lang: str,
+) -> tuple[int, str, str]:
+    """Fetch a signed lab proof from the dashboard for this student/lab.
+
+    The dashboard owns DASHBOARD_PROOF_SECRET and signs the markdown
+    (HMAC-SHA256); the coach never holds the secret. cohort_id is the
+    server-side authoritative value, so a student cannot forge a proof for
+    another cohort.
+
+    Returns (status_code, body, filename). On any failure the body is a
+    short plain-text message and filename is empty.
+    """
+    if not DASHBOARD_URL:
+        return 503, "dashboard not configured", ""
+    if not student_token:
+        return 400, "student_token required", ""
+
+    name = lab.get("name_fr" if lang == "fr" else "name_en", "") or lab.get("key", "")
+    goal = lab.get("goal_fr" if lang == "fr" else "goal_en", "")
+    params = {
+        "student_token": student_token,
+        "cohort": COHORT_ID,
+        "key": lab.get("key", ""),
+        "name": name,
+        "category": lab.get("owasp", ""),
+        "description": goal,
+    }
+    if student_name:
+        params["student_name"] = student_name
+    query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items() if v != "")
+    url = f"{DASHBOARD_URL}/api/proof?{query}"
+    try:
+        async with httpx.AsyncClient(timeout=DASHBOARD_TIMEOUT) as client:
+            resp = await client.get(url)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("proof fetch failed: %s", exc)
+        return 502, "dashboard unreachable", ""
+
+    if resp.status_code != 200:
+        LOGGER.info("proof rejected key=%s status=%s", lab.get("key"), resp.status_code)
+        return resp.status_code, resp.text[:300], ""
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    filename = f"pwnzzai-{lab.get('key', 'lab')}-{ts}.md"
+    return 200, resp.text, filename

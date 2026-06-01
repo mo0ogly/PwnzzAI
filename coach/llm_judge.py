@@ -257,6 +257,52 @@ async def hint(
     return {"level": level, "cost_pct": HINT_COST_BY_LEVEL[level], "hint": text}
 
 
+# --------------------------------------------------------------------------
+# Walkthrough / debrief (post-success corrige)
+# --------------------------------------------------------------------------
+
+
+async def debrief(
+    lab: dict[str, Any], transcript: list[dict[str, Any]], lang: str
+) -> str:
+    """Produce the canonical walkthrough once the student has succeeded.
+
+    Mirrors JuiceLab's post-solve walkthrough: this is the full corrige, so
+    the caller MUST gate it on a successful judge verdict — never expose it
+    before the student demonstrates success. Generated from the student's own
+    winning transcript so the explanation matches what actually worked.
+    """
+    language = "French" if str(lang).lower().startswith("fr") else "English"
+    convo = _format_transcript(transcript) if transcript else "(no transcript)"
+    system = (
+        "You are a security lab instructor writing the official walkthrough for "
+        "an OWASP LLM lab the student has JUST solved. Produce a concise corrige "
+        "in Markdown with exactly these three sections:\n"
+        "1. How the vulnerability works (the root cause).\n"
+        "2. The winning technique (reference what the student actually did in "
+        "the transcript).\n"
+        "3. Production defense (how to prevent it for real).\n"
+        f"Reply in {language}. Use short paragraphs and bullet points. Stay "
+        "under 300 words. Do not invent steps the transcript does not show."
+    )
+    user = (
+        f"LAB: {lab.get('name_en', '')} ({lab.get('owasp', '')})\n"
+        f"OBJECTIVE: {lab.get('goal_en', '')}\n"
+        f"SUCCESS CRITERIA: {lab.get('success_criteria', '')}\n\n"
+        f"STUDENT WINNING TRANSCRIPT:\n{convo}\n\n"
+        "Write the walkthrough now."
+    )
+    text = await _ollama_chat(
+        [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.3,
+    )
+    LOGGER.info("debrief lab=%s lang=%s", lab.get("key"), lang)
+    return text
+
+
 async def healthcheck() -> bool:
     """True if Ollama answers and the judge model is present."""
     try:

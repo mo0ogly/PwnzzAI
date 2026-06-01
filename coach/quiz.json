@@ -29,6 +29,16 @@
         "correct": 1,
         "explanation_fr": "Filtrage entree/sortie, separation des canaux et privilege minimal limitent l'impact. Mettre un secret dans le prompt l'aggrave.",
         "explanation_en": "Input/output filtering, channel separation and least privilege limit impact. Putting a secret in the prompt makes it worse."
+      },
+      {
+        "type": "text",
+        "question_fr": "En une phrase, cite deux defenses contre l'injection de prompt directe.",
+        "question_en": "In one sentence, name two defenses against direct prompt injection.",
+        "expected_keywords_fr": ["separation", "privilege", "filtrage", "garde-fou", "instruction"],
+        "expected_keywords_en": ["separation", "privilege", "filter", "guardrail", "boundary"],
+        "min_keywords": 2,
+        "explanation_fr": "Defenses attendues : separer instruction et donnee, moindre privilege du modele, filtrage entree/sortie, garde-fous.",
+        "explanation_en": "Expected defenses: separate instruction from data, least privilege, input/output filtering, guardrails."
       }
     ],
     "pwnzzai-indirect-prompt-injection": [
@@ -58,6 +68,16 @@
         "correct": 1,
         "explanation_fr": "Il faut reperer le champ/contenu que le modele consomme, puis y planter l'instruction.",
         "explanation_en": "You must spot the field/content the model consumes, then plant the instruction there."
+      },
+      {
+        "type": "text",
+        "question_fr": "Cite deux mesures pour empecher l'injection indirecte via du contenu externe.",
+        "question_en": "Name two measures to stop indirect injection via external content.",
+        "expected_keywords_fr": ["sanitis", "contenu", "non fiable", "provenance", "isol"],
+        "expected_keywords_en": ["sanitiz", "untrusted", "provenance", "isolate", "content"],
+        "min_keywords": 2,
+        "explanation_fr": "Traiter le contenu recupere comme non fiable : sanitisation, provenance verifiee, isolation, ne jamais executer d'instructions venant des donnees.",
+        "explanation_en": "Treat retrieved content as untrusted: sanitization, verified provenance, isolation, never execute instructions from data."
       }
     ],
     "pwnzzai-sensitive-info": [
@@ -87,6 +107,16 @@
         "correct": 1,
         "explanation_fr": "Minimisation du contexte et nettoyage des sorties reduisent la surface de fuite ; un secret dans le prompt est exfiltrable.",
         "explanation_en": "Context minimization and output sanitization reduce the leak surface; a secret in the prompt is exfiltrable."
+      },
+      {
+        "type": "text",
+        "question_fr": "Comment empecher la fuite d'informations sensibles par le LLM ? (deux mesures)",
+        "question_en": "How do you prevent the LLM from leaking sensitive information? (two measures)",
+        "expected_keywords_fr": ["minimisation", "filtrage", "redaction", "acces", "secret"],
+        "expected_keywords_en": ["minimization", "filter", "redact", "access", "secret"],
+        "min_keywords": 2,
+        "explanation_fr": "Minimisation des donnees, filtrage/redaction de sortie, controle d'acces, ne jamais mettre de secret dans le prompt.",
+        "explanation_en": "Data minimization, output filtering/redaction, access control, never put secrets in the prompt."
       }
     ],
     "pwnzzai-insecure-plugin": [
@@ -116,6 +146,16 @@
         "correct": 1,
         "explanation_fr": "Toute sortie LLM destinee a un systeme aval doit etre traitee comme une entree non fiable.",
         "explanation_en": "Any LLM output destined for a downstream system must be treated as untrusted input."
+      },
+      {
+        "type": "text",
+        "question_fr": "Cite deux protections d'un plugin/outil appele par le LLM.",
+        "question_en": "Name two protections for a plugin/tool called by the LLM.",
+        "expected_keywords_fr": ["validation", "privilege", "autorisation", "typage", "sanitis"],
+        "expected_keywords_en": ["validation", "privilege", "authorization", "typing", "sanitiz"],
+        "min_keywords": 2,
+        "explanation_fr": "Validation stricte des entrees, typage des parametres, moindre privilege, autorisation sur l'appel d'outil.",
+        "explanation_en": "Strict input validation, parameter typing, least privilege, authorization on the tool call."
       }
     ],
     "pwnzzai-excessive-agency": [
@@ -145,6 +185,16 @@
         "correct": 1,
         "explanation_fr": "Privilege minimal, outils restreints et human-in-the-loop sur les actions a impact reduisent le risque.",
         "explanation_en": "Least privilege, restricted tools and human-in-the-loop on impactful actions reduce the risk."
+      },
+      {
+        "type": "text",
+        "question_fr": "Comment limiter l'agentivite excessive d'un assistant ? (deux mesures)",
+        "question_en": "How do you limit excessive agency of an assistant? (two measures)",
+        "expected_keywords_fr": ["privilege", "humain", "approbation", "limit", "perimetre"],
+        "expected_keywords_en": ["privilege", "human", "approval", "limit", "scope"],
+        "min_keywords": 2,
+        "explanation_fr": "Moindre privilege, perimetre d'outils restreint, validation humaine (human-in-the-loop), limites d'actions.",
+        "explanation_en": "Least privilege, restricted tool scope, human-in-the-loop approval, action limits."
       }
     ],
     "pwnzzai-model-theft": [
@@ -174,6 +224,16 @@
         "correct": 1,
         "explanation_fr": "Rate limiting, monitoring des requetes d'extraction et non-divulgation des instructions reduisent le risque.",
         "explanation_en": "Rate limiting, monitoring of extraction queries and non-disclosure of instructions reduce the risk."
+      },
+      {
+        "type": "text",
+        "question_fr": "Cite deux mesures contre l'extraction/vol de modele.",
+        "question_en": "Name two measures against model extraction/theft.",
+        "expected_keywords_fr": ["limit", "acces", "filigrane", "surveillance", "quota"],
+        "expected_keywords_en": ["rate", "access", "watermark", "monitor", "quota"],
+        "min_keywords": 2,
+        "explanation_fr": "Limitation de debit (rate limit), controle d'acces, quotas, filigrane, surveillance des requetes d'extraction.",
+        "explanation_en": "Rate limiting, access control, quotas, watermarking, monitoring of extraction queries."
       }
     ],
     "pwnzzai-supply-chain": [
@@ -203,6 +263,16 @@
         "correct": 1,
         "explanation_fr": "Verifier provenance et integrite (signatures, SBOM) est la parade canonique de LLM05.",
         "explanation_en": "Verifying provenance and integrity (signatures, SBOM) is the canonical LLM05 mitigation."
+      },
+      {
+        "type": "text",
+        "question_fr": "Comment securiser la chaine d'approvisionnement d'un modele ? (deux mesures)",
+        "question_en": "How do you secure a model's supply chain? (two measures)",
+        "expected_keywords_fr": ["provenance", "signature", "sbom", "version", "verifier"],
+        "expected_keywords_en": ["provenance", "signature", "sbom", "pin", "verify"],
+        "min_keywords": 2,
+        "explanation_fr": "Verifier la provenance, signer les modeles, SBOM, epingler les versions, auditer les tiers.",
+        "explanation_en": "Verify provenance, sign models, SBOM, pin versions, vet third parties."
       }
     ],
     "pwnzzai-data-poisoning-catering-rag": [
@@ -232,6 +302,16 @@
         "correct": 1,
         "explanation_fr": "Controle des sources, validation a l'ingestion et tracabilite limitent l'empoisonnement.",
         "explanation_en": "Source control, ingestion validation and traceability limit poisoning."
+      },
+      {
+        "type": "text",
+        "question_fr": "Cite deux protections contre l'empoisonnement des sources RAG.",
+        "question_en": "Name two protections against poisoning of RAG sources.",
+        "expected_keywords_fr": ["source", "validation", "integrite", "liste blanche", "isol"],
+        "expected_keywords_en": ["source", "validation", "integrity", "allowlist", "isolate"],
+        "min_keywords": 2,
+        "explanation_fr": "Valider et controler les sources, liste blanche, controle d'integrite, isolation de la recuperation.",
+        "explanation_en": "Validate and vet sources, allowlist, integrity checks, isolate retrieval."
       }
     ],
     "pwnzzai-data-poisoning": [
@@ -261,6 +341,16 @@
         "correct": 1,
         "explanation_fr": "Tracabilite des sources, validation et detection d'anomalies dans le jeu d'entrainement.",
         "explanation_en": "Source traceability, validation and anomaly detection in the training set."
+      },
+      {
+        "type": "text",
+        "question_fr": "Comment se proteger de l'empoisonnement des donnees d'entrainement ? (deux mesures)",
+        "question_en": "How do you protect against training-data poisoning? (two measures)",
+        "expected_keywords_fr": ["validation", "provenance", "anomalie", "integrite", "curation"],
+        "expected_keywords_en": ["validation", "provenance", "anomaly", "integrity", "curation"],
+        "min_keywords": 2,
+        "explanation_fr": "Validation et curation des donnees, provenance verifiee, detection d'anomalies, controle d'integrite.",
+        "explanation_en": "Data validation and curation, verified provenance, anomaly detection, integrity checks."
       }
     ],
     "pwnzzai-misinformation": [
@@ -290,6 +380,16 @@
         "correct": 1,
         "explanation_fr": "Ancrage sur sources verifiees, citations et verification humaine reduisent la surconfiance.",
         "explanation_en": "Grounding on verified sources, citations and human verification reduce overreliance."
+      },
+      {
+        "type": "text",
+        "question_fr": "Cite deux mesures pour reduire la desinformation generee par le LLM.",
+        "question_en": "Name two measures to reduce LLM-generated misinformation.",
+        "expected_keywords_fr": ["ancrage", "source", "verification", "citation", "humain"],
+        "expected_keywords_en": ["grounding", "source", "fact", "citation", "human"],
+        "min_keywords": 2,
+        "explanation_fr": "Ancrage sur des sources (grounding/RAG), citations verifiables, verification des faits, revue humaine.",
+        "explanation_en": "Grounding on sources (RAG), verifiable citations, fact-checking, human review."
       }
     ],
     "pwnzzai-dos": [
@@ -319,6 +419,16 @@
         "correct": 1,
         "explanation_fr": "Bornage des entrees/sorties, quotas et rate limiting contiennent la consommation.",
         "explanation_en": "Bounding inputs/outputs, quotas and rate limiting contain consumption."
+      },
+      {
+        "type": "text",
+        "question_fr": "Comment limiter un deni de service par epuisement de ressources LLM ? (deux mesures)",
+        "question_en": "How do you limit a resource-exhaustion DoS on an LLM? (two measures)",
+        "expected_keywords_fr": ["limit", "quota", "timeout", "taille", "cout"],
+        "expected_keywords_en": ["rate", "quota", "timeout", "size", "cost"],
+        "min_keywords": 2,
+        "explanation_fr": "Rate limiting, quotas, plafond de taille d'entree, timeouts, plafond de cout.",
+        "explanation_en": "Rate limiting, quotas, input size cap, timeouts, cost cap."
       }
     ],
     "pwnzzai-customer-support-safety": [
@@ -348,6 +458,16 @@
         "correct": 1,
         "explanation_fr": "Moderation des deux cotes, politiques de refus robustes et red-teaming continu.",
         "explanation_en": "Two-sided moderation, robust refusal policies and continuous red-teaming."
+      },
+      {
+        "type": "text",
+        "question_fr": "Cite deux garde-fous pour un chatbot de support client.",
+        "question_en": "Name two guardrails for a customer-support chatbot.",
+        "expected_keywords_fr": ["garde-fou", "moderation", "refus", "perimetre", "escalade"],
+        "expected_keywords_en": ["guardrail", "moderation", "refusal", "scope", "escalation"],
+        "min_keywords": 2,
+        "explanation_fr": "Garde-fous, moderation de sortie, politique de refus, perimetre restreint, escalade humaine.",
+        "explanation_en": "Guardrails, output moderation, refusal policy, restricted scope, human escalation."
       }
     ],
     "pwnzzai-agentic-tools": [
@@ -377,6 +497,16 @@
         "correct": 1,
         "explanation_fr": "Scoping strict des outils, requetes parametrees et privilege minimal cloisonnent l'agent.",
         "explanation_en": "Strict tool scoping, parameterized queries and least privilege contain the agent."
+      },
+      {
+        "type": "text",
+        "question_fr": "Comment securiser un agent qui orchestre des outils ? (deux mesures)",
+        "question_en": "How do you secure an agent that orchestrates tools? (two measures)",
+        "expected_keywords_fr": ["privilege", "sandbox", "approbation", "autorisation", "perimetre"],
+        "expected_keywords_en": ["privilege", "sandbox", "approval", "authorization", "allowlist"],
+        "min_keywords": 2,
+        "explanation_fr": "Moindre privilege par outil, sandbox, autorisation/allowlist d'actions, approbation humaine sur les actions sensibles.",
+        "explanation_en": "Least privilege per tool, sandbox, action authorization/allowlist, human approval on sensitive actions."
       }
     ]
   }
