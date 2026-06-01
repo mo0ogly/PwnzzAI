@@ -60,6 +60,10 @@ never break it — bump `PWNZZAI_COMMIT` and rebuild. Full internals:
 
 ## Screenshots
 
+Student side, the JuiceLab Coach panel injected by the sidecar into the PwnzzAI app (progression, badges, cohort join):
+
+![JuiceLab Coach panel inside PwnzzAI](docs/img/coach-panel.png)
+
 PwnzzAI cohorts report to the same central JuiceLab teacher dashboard. Teacher view of a cohort matrix (light theme; a light/dark toggle sits in the topbar):
 
 ![Teacher dashboard - cohort matrix](docs/img/prof-dashboard-light.png)
