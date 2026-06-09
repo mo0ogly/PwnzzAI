@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Genere les guides d'installation PwnzzAI au format .docx (eleve + prof).
+"""Genere le guide d'installation PROF PwnzzAI au format .docx.
 
-Decoupe le guide combine (build_coach_guide.py) en DEUX documents distribuables :
-
-    docs/GUIDE-INSTALL-ELEVE.docx   -> eleve, AUCUN contenu prof/dashboard/admin
     docs/GUIDE-INSTALL-PROF.docx    -> prof (deploiement dashboard, events, juge)
+
+Le guide ELEVE n'est PLUS genere ici : il est produit par
+docs/build_eleve_guide_fr.py, qui parse docs/STUDENT-INSTALL-FR.md (source de
+verite unique cote eleve). Ce script ne touche QUE le document prof.
 
 Modeles :
     - docs/build_coach_guide.py            (helpers python-docx, palette, mermaid)
@@ -22,7 +23,7 @@ Interpreteur :
     (Verif : `python3.11 -c "import docx"` doit reussir.)
 
 Usage :
-    python3.11 docs/build_install_guides.py
+    python3.11 docs/build_install_guides.py    # -> GUIDE-INSTALL-PROF.docx uniquement
 
 Source de verite : valeurs ci-dessous + docs/STUDENT-INSTALL-FR.md,
 docker-compose.yml, .env.example et scripts/{install-student,deploy-dashboard}.*.
@@ -67,7 +68,6 @@ JUICELAB_REPO_URL = "https://github.com/mo0ogly/juicelab.git"
 
 DOCS_DIR = Path(__file__).resolve().parent
 IMG_DIR = DOCS_DIR / "img"
-ELEVE_OUT = DOCS_DIR / "GUIDE-INSTALL-ELEVE.docx"
 PROF_OUT = DOCS_DIR / "GUIDE-INSTALL-PROF.docx"
 
 # Palette (identique au modele JuiceLab, teinte violette du coach pour le titre)
@@ -485,258 +485,6 @@ def annexe_docker(doc: Document) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Document ELEVE  (AUCUN contenu prof / dashboard-deploy / events / juge)
-# ---------------------------------------------------------------------------
-
-
-def build_eleve(tmp: Path) -> None:
-    doc = Document()
-    setup_styles(doc)
-    add_footer_pagenum(doc, "Coach JuiceLab pour PwnzzAI - Guide eleve")
-    title_block(
-        doc, "Coach JuiceLab pour PwnzzAI — Guide eleve",
-        "Installer PwnzzAI + le coach sur ton poste — Windows / macOS / Linux",
-    )
-
-    doc.add_heading("1. Ce qui sera installe", level=1)
-    para(doc, "PwnzzAI (la pizza shop OWASP volontairement vulnerable pour "
-              "apprendre la securite des LLM) tourne comme une seule stack docker "
-              "compose sur ton poste. Le Coach JuiceLab ajoute par-dessus une "
-              "sidebar pedagogique (briefing, indices gradues, journal, quiz, "
-              "juge automatique, badges) sans modifier le produit OWASP.")
-    add_table(
-        doc, ["Conteneur", "Port hote", "Role"],
-        [
-            ["pwnzzai-coach", COACH_PORT + " -> 8090",
-             "Entree eleve : proxy + panneau coach"],
-            ["pwnzzai-shop", RAW_PORT + " -> 8080",
-             "PwnzzAI brut OWASP (intact, pour debug)"],
-            ["ollama", "interne",
-             "LLM local : modele des labs + modele du juge/indices"],
-        ],
-        [42, 35, 93],
-    )
-    note(doc, "Tu utilises uniquement http://localhost:" + COACH_PORT +
-              " (le coach). Le port " + RAW_PORT + " reste disponible pour "
-              "deboguer PwnzzAI sans le coach. Les trois conteneurs tournent "
-              "quel que soit ton mode (cohorte ou solo).")
-
-    png_archi = tmp / "archi.png"
-    render_mermaid(MERMAID_ARCHI, png_archi, tmp)
-    add_diagram(doc, png_archi, "Le coach est un sidecar place devant PwnzzAI ; "
-                                "il transmet tes requetes a l'app, interroge "
-                                "Ollama (juge/indices) et, en cohorte, remonte "
-                                "tes events au dashboard du prof.")
-
-    doc.add_heading("2. Choisis ton mode AVANT d'installer", level=1)
-    para(doc, "Deux modes. La seule difference est la remontee de ta progression "
-              "vers le dashboard du prof. La stack lancee chez toi est identique "
-              "(3 conteneurs) ; seule la cle JUICELAB_DASHBOARD_URL change.")
-    add_table(
-        doc, ["Ta situation", "Mode", "Remontee", "Dashboard ?"],
-        [
-            ["TD avec un enseignant (cas normal)", "Cohorte",
-             "Events vers le dashboard du prof",
-             "NON — c'est le prof qui l'heberge"],
-            ["Seul, sans prof (revision)", "Solo",
-             "Aucune remontee",
-             "NON — le coach marche en local"],
-        ],
-        [50, 22, 50, 48],
-    )
-    note(doc, "ERREUR FREQUENTE A EVITER. Dans AUCUN mode tu n'installes de "
-              "dashboard sur ton poste. PwnzzAI n'embarque aucun dashboard eleve. "
-              "En TD, c'est le prof qui heberge l'unique dashboard central ; toi, "
-              "tu te contentes de pointer dessus avec -d <ip-prof>. En solo, il "
-              "n'y a tout simplement pas de reporting.")
-
-    doc.add_heading("3. Prerequis", level=1)
-    section_prerequis(doc)
-    note(doc, "RAM / Ollama : le modele du juge par defaut (" + JUDGE_MODEL +
-              ") tient dans ~3-4 Go de RAM. Ne descends pas a 1b pour le juge "
-              "(verdicts non fiables).")
-
-    doc.add_heading("4. Installation en une commande", level=1)
-    para(doc, "Meme flux sur Linux, macOS et Windows. Cloner d'abord :")
-    code_block(doc, [
-        "git clone " + REPO_URL,
-        "cd PwnzzAI",
-    ])
-    para(doc, "Remplace " + COHORT + " par l'identifiant de cohorte donne par "
-              "ton enseignant, et " + EXAMPLE_IP + " par l'IP du dashboard prof "
-              "qu'il t'a communiquee.")
-
-    doc.add_heading("Mode cohorte — TD avec un enseignant (recommande)", level=2)
-    para(doc, "Stack complete, events pousses vers le dashboard du prof. "
-              "Tu n'installes PAS de dashboard.")
-    code_block(doc, [
-        "# Linux / macOS",
-        "./scripts/install-student.sh -c " + COHORT + " -d " + EXAMPLE_IP,
-    ])
-    code_block(doc, [
-        "# Windows PowerShell 7+",
-        ".\\scripts\\install-student.ps1 -Cohort " + COHORT +
-        " -Dashboard " + EXAMPLE_IP,
-    ])
-    note(doc, "Port du dashboard prof : defaut " + DASHBOARD_PORT + ". La valeur "
-              "de -d accepte 192.168.1.10 (-> http://192.168.1.10:" + DASHBOARD_PORT +
-              "), 192.168.1.10:5050 (port explicite) ou une URL complete.")
-
-    doc.add_heading("Mode solo — sans prof (autonomie)", level=2)
-    para(doc, "La MEME stack complete, mais sans remontee "
-              "(JUICELAB_DASHBOARD_URL reste vide). Indices, juge, quiz et badges "
-              "fonctionnent quand meme en local.")
-    code_block(doc, [
-        "# Linux / macOS",
-        "./scripts/install-student.sh -c " + COHORT,
-    ])
-    code_block(doc, [
-        "# Windows PowerShell 7+",
-        ".\\scripts\\install-student.ps1 -Cohort " + COHORT,
-    ])
-    note(doc, "Si le script bash n'est pas executable : chmod +x "
-              "scripts/install-student.sh. Si PowerShell bloque les scripts, "
-              "lance une fois : Set-ExecutionPolicy -Scope CurrentUser "
-              "-ExecutionPolicy RemoteSigned. PowerShell 7+ est requis "
-              "(Windows 10 a la 5.1 par defaut, trop vieille).")
-
-    doc.add_heading("Ce que fait l'installeur", level=2)
-    numbered(doc, "Verifie que Docker et Docker Compose sont disponibles.")
-    numbered(doc, "Cree la racine .env depuis .env.example si elle manque.")
-    numbered(doc, "Ecrit les cles JUICELAB_* : JUICELAB_COHORT_ID (selon -c), "
-                  "JUICELAB_INSTANCE_LABEL (selon -l ou le nom de la machine), "
-                  "JUICELAB_DASHBOARD_URL (renseigne en cohorte via -d, vide en solo).")
-    numbered(doc, "Lance la stack complete : docker compose up -d --build (3 conteneurs).")
-    numbered(doc, "Tire les modeles Ollama (scripts/pull-models.sh : juge puis labs).")
-    numbered(doc, "Attend que le coach reponde sur /__coach/health, puis affiche les URLs.")
-    note(doc, "Premier build : 5 a 8 min (clone + build de l'image PwnzzAI) puis "
-              "~2-3 Go de modeles Ollama. C'est normal et ca n'arrive qu'une fois. "
-              "L'installeur est idempotent (le relancer ne casse rien). Reinstall "
-              "propre : --reset (bash) ou -Reset (PowerShell).")
-
-    doc.add_heading("5. Verifier l'installation", level=1)
-    add_table(
-        doc, ["URL", "Attendu"],
-        [
-            ["http://localhost:" + COACH_PORT,
-             "PwnzzAI via le coach (entree eleve). Bouton rond violet « JL » "
-             "en bas a droite."],
-            ["http://localhost:" + RAW_PORT,
-             "PwnzzAI brut OWASP (sans coach, pour debug)."],
-            ["http://localhost:" + COACH_PORT + "/__coach/health",
-             'JSON {"ok":true,"ollama":true,"dashboard_configured":...}'],
-        ],
-        [62, 108],
-    )
-    code_block(doc, [
-        "curl -s http://localhost:" + COACH_PORT + "/__coach/health",
-        '# {"ok":true,"ollama":true,"dashboard_configured":true}',
-    ])
-    bullet(doc, "ollama:true -> un modele de juge est tire et disponible (sinon § 7).")
-    bullet(doc, "dashboard_configured:true -> remontee activee (cohorte). En solo "
-                "c'est false, et c'est NORMAL.")
-    note(doc, "Le panneau coach est FERME au depart, il n'apparait pas tout seul. "
-              "Pour l'ouvrir : (1) clique le bouton rond violet « JL » en bas a "
-              "droite, OU (2) ajoute #coach a la fin de l'URL d'un lab (ex. "
-              "http://localhost:" + COACH_PORT + "/direct-prompt-injection#coach). "
-              "Verifie d'etre sur le port " + COACH_PORT + " (le coach), pas " +
-              RAW_PORT + ". Si rien n'apparait : Ctrl+Shift+R.")
-    add_screenshot(doc, IMG_DIR / "coach-closed.png",
-                   "Le bouton « JL » ferme, en bas a droite de la page du lab.")
-    add_screenshot(doc, IMG_DIR / "coach-panel.png",
-                   "Le panneau ouvert : onglets Briefing / Indices / Journal / "
-                   "Quiz / Progression.")
-
-    doc.add_heading("Smoke test bout-en-bout", level=2)
-    numbered(doc, "Ouvre http://localhost:" + COACH_PORT +
-                  " et cree un compte / connecte-toi dans PwnzzAI.")
-    numbered(doc, "Va sur un lab (ex. Direct Prompt Injection).")
-    numbered(doc, "Clique « JL » : le panneau coach a onglets s'ouvre (bouton FR/EN).")
-    numbered(doc, "Onglet Indices : revele l'indice N1 (cout -5 %). Le texte "
-                  "s'affiche (genere par le LLM local). « Service coach "
-                  "indisponible (Ollama) » -> modeles non tires (§ 7).")
-    numbered(doc, "Attaque l'assistant (la conversation est capturee), puis "
-                  "Progression -> Verifier ma reussite : le juge rend Reussi / "
-                  "Partiel / Pas encore + score + justification.")
-    add_screenshot(doc, IMG_DIR / "coach-hints.png",
-                   "Onglet Indices : 5 niveaux gradues N1-N5, cout -5/-10/-20/-35/-50 %.")
-    add_screenshot(doc, IMG_DIR / "coach-progress.png",
-                   "Onglet Progression : score par lab, score moyen, badges, "
-                   "rejoindre une cohorte.")
-    note(doc, "Scoring : score = max(50, 100 - somme des couts d'indices). "
-              "Ta progression (jeton, scores, indices, journaux, quiz, badges) "
-              "est stockee cote navigateur (localStorage, cle pwnzzai_coach_v1) "
-              "et survit aux redemarrages de conteneurs.")
-
-    doc.add_heading("6. Utilisation au quotidien", level=1)
-    para(doc, "La stack survit aux reboots ; pas besoin de relancer l'installeur. "
-              "Le plus simple est le launcher pwnzzai.sh (Linux/macOS) ou "
-              "pwnzzai.ps1 (Windows) :")
-    code_block(doc, [
-        "./pwnzzai.sh up         # demarre / reprend la stack (build + up -d)",
-        "./pwnzzai.sh down       # arrete (conserve les volumes)",
-        "./pwnzzai.sh restart    # down puis up",
-        "./pwnzzai.sh status     # docker compose ps",
-        "./pwnzzai.sh logs       # logs en direct (coach|app|ollama|all)",
-        "./pwnzzai.sh health     # ping coach (JSON) + brut (code HTTP)",
-        "./pwnzzai.sh models     # (re)tire les modeles Ollama",
-        "./pwnzzai.sh wipe       # DESTRUCTIF : down -v (supprime ollama_data)",
-    ])
-    code_block(doc, [
-        "# Windows PowerShell 7+",
-        ".\\pwnzzai.ps1 up | down | restart | status | logs | health | models | wipe",
-    ])
-
-    doc.add_heading("7. Configurer un fournisseur LLM (cible)", level=1)
-    section_fournisseur_llm(doc, full=False)
-
-    doc.add_heading("8. Depannage", level=1)
-    add_table(
-        doc, ["Symptome", "Cause / solution"],
-        [
-            ["Indice ou « Verifier » dit « Service coach indisponible (Ollama) »",
-             "Modeles Ollama pas tires (volume neuf). Lance ./pwnzzai.sh models, "
-             "puis verifie \"ollama\":true sur /__coach/health."],
-            ["health renvoie \"ollama\":false",
-             "Aucun modele de juge. ./pwnzzai.sh models. Verifie que le conteneur "
-             "ollama tourne et COACH_JUDGE_MODEL (defaut " + JUDGE_MODEL + ")."],
-            ["Port " + RAW_PORT + " ou " + COACH_PORT + " deja utilise",
-             "Une autre appli squatte le port. Change le mapping hote dans "
-             "docker-compose.yml puis ./pwnzzai.sh restart."],
-            ["docker compose: command not found",
-             "Docker trop vieux / plugin manquant. Linux : sudo apt install "
-             "docker-compose-v2. Windows/macOS : mettre a jour Docker Desktop."],
-            ["permission denied sur le script (Linux/macOS)",
-             "chmod +x scripts/install-student.sh ; chmod +x pwnzzai.sh"],
-            ["PowerShell : « l'execution de scripts est desactivee »",
-             "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy "
-             "RemoteSigned. PowerShell 7+ requis."],
-            ["« Dashboard prof injoignable » (mode cohorte)",
-             "NORMAL cote eleve : c'est cote prof / reseau que ca se regle. Pas "
-             "de dashboard local a corriger. Rappelle au prof l'IP attendue "
-             "(-d <ip-prof>). L'install reste reussie."],
-            ["dashboard_configured:false alors que je suis en cohorte",
-             "JUICELAB_DASHBOARD_URL vide. Relance avec -d <ip-prof>. En solo, "
-             "false est attendu."],
-        ],
-        [62, 108],
-    )
-
-    doc.add_heading("9. Desinstaller", level=1)
-    code_block(doc, [
-        "./pwnzzai.sh wipe              # down -v : arret + suppression des volumes",
-        "cd .. && rm -rf PwnzzAI        # suppression du repo clone",
-        "docker image prune            # optionnel, libere du disque",
-    ])
-    note(doc, "wipe / down -v supprime le volume ollama_data : tous les modeles "
-              "tires sont perdus (re-telechargement au prochain up + models).")
-
-    annexe_docker(doc)
-    doc.save(str(ELEVE_OUT))
-    print(f"  [ok] {ELEVE_OUT.name} genere ({ELEVE_OUT.stat().st_size // 1024} Ko)")
-
-
-# ---------------------------------------------------------------------------
 # Document PROF
 # ---------------------------------------------------------------------------
 
@@ -922,12 +670,11 @@ def build_prof(tmp: Path) -> None:
 
 
 def main() -> int:
-    print("Generation des guides d'installation PwnzzAI (eleve + prof)...")
+    print("Generation du guide d'installation PROF PwnzzAI...")
     # tmp sous DOCS_DIR (chemin non cache) : le Chromium snap, confine, ne lit
     # pas les dossiers caches type ~/.nvm ou /tmp restreint.
     with tempfile.TemporaryDirectory(dir=str(DOCS_DIR)) as td:
         tmp = Path(td)
-        build_eleve(tmp)
         build_prof(tmp)
     print("Termine.")
     return 0

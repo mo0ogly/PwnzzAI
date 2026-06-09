@@ -31,6 +31,21 @@ PwnzzAI tourne comme **une seule stack `docker compose`** a la racine du depot. 
 | `pwnzzai-shop` | 8090 → 8080 | PwnzzAI brut OWASP (intact, pour debug) | Cohorte **et** Solo |
 | `ollama` | interne | LLM local : modele des labs + modele du juge/indices (volume `ollama_data`) | Cohorte **et** Solo |
 
+```mermaid
+flowchart LR
+    B["Ton navigateur<br/>http://localhost:8095"]
+    subgraph stack["Ta machine (docker compose)"]
+        C["pwnzzai-coach<br/>sidecar :8095"]
+        P["pwnzzai-app<br/>produit OWASP :8090"]
+        O["ollama<br/>LLM local"]
+    end
+    D["Dashboard prof<br/>(cohorte, distant)"]
+    B -->|"toutes les requetes"| C
+    C -->|"transmises"| P
+    C <-->|"juge + indices"| O
+    C -.->|"events cohorte"| D
+```
+
 Tu utilises **uniquement** `http://localhost:8095` (le coach). Le port `8090` reste disponible pour deboguer PwnzzAI sans le coach.
 
 Le coach **ne modifie pas** le produit OWASP : il se place devant comme proxy transparent et injecte un `<script>` dans la page.
