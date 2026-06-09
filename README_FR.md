@@ -168,7 +168,7 @@ Bilingue, plus un guide Word distribuable (même template que la doc JuiceLab) :
 |---|---|
 | [docs/GUIDE-FR.md](./docs/GUIDE-FR.md) | Guide complet (FR) — prof + élève |
 | [docs/GUIDE-EN.md](./docs/GUIDE-EN.md) | Full guide (EN) — teacher + student |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Internes, protocole, diagrammes Mermaid |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Internes, protocole, diagrammes Mermaid (EN : [ARCHITECTURE-EN.md](./docs/ARCHITECTURE-EN.md)) |
 | docs/GUIDE-COACH-PWNZZAI.docx | Guide Word imprimable (diagrammes embarqués) |
 
 Régénérer le `.docx` :

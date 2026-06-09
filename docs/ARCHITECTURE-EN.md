@@ -17,17 +17,17 @@ update does not break the coach.
 
 ```mermaid
 flowchart LR
-    B["Navigateur eleve<br/>:8095"]
+    B["Student browser<br/>:8095"]
     C["pwnzzai-coach<br/>(reverse proxy + API)"]
-    P["pwnzzai-app<br/>:8080 (OWASP, intact)"]
+    P["pwnzzai-app<br/>:8080 (OWASP, untouched)"]
     O["ollama<br/>:11434"]
-    D["Dashboard prof JuiceLab<br/>/api/sync"]
+    D["JuiceLab teacher dashboard<br/>/api/sync"]
 
-    B -->|"toutes les requetes"| C
-    C -->|"transmises telles quelles"| P
-    C -->|"juge + indices"| O
-    C -->|"evenements cohorte"| D
-    C -.->|"injecte coach.js dans le HTML"| B
+    B -->|"all requests"| C
+    C -->|"forwarded as-is"| P
+    C -->|"judge + hints"| O
+    C -->|"cohort events"| D
+    C -.->|"injects coach.js into the HTML"| B
 ```
 
 ## 2. Components
@@ -81,16 +81,16 @@ success criteria (for the judge) and context (for the hints).
 ```mermaid
 sequenceDiagram
     autonumber
-    participant E as Eleve (navigateur)
-    participant A as Assistant vulnerable (PwnzzAI)
+    participant E as Student (browser)
+    participant A as Vulnerable assistant (PwnzzAI)
     participant C as coach
-    participant O as Ollama (juge)
-    participant D as Dashboard prof
-    E->>A: prompts d'attaque
-    A-->>E: reponses
-    Note over E: coach.js capture la conversation
+    participant O as Ollama (judge)
+    participant D as Teacher dashboard
+    E->>A: attack prompts
+    A-->>E: responses
+    Note over E: coach.js captures the conversation
     E->>C: POST /__coach/judge {lab_key, transcript}
-    C->>O: prompt systeme + few-shot + transcript
+    C->>O: system prompt + few-shot + transcript
     O-->>C: VERDICT / SCORE / REASON
     C-->>E: {success, score, reason}
     alt success == true

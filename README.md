@@ -58,7 +58,7 @@ flowchart LR
 
 The coach needs no knowledge of PwnzzAI's internal routes, so upstream updates
 never break it — bump `PWNZZAI_COMMIT` and rebuild. Full internals:
-[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+[docs/ARCHITECTURE-EN.md](./docs/ARCHITECTURE-EN.md).
 
 ## Screenshots
 
@@ -162,9 +162,9 @@ Bilingual, plus a distributable Word guide (same template as the JuiceLab docs):
 
 | Document | Audience |
 |---|---|
-| [docs/GUIDE-FR.md](./docs/GUIDE-FR.md) | Guide complet (FR) — prof + élève |
 | [docs/GUIDE-EN.md](./docs/GUIDE-EN.md) | Full guide (EN) — teacher + student |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Internals, protocol, Mermaid diagrams |
+| [docs/GUIDE-FR.md](./docs/GUIDE-FR.md) | Guide complet (FR) — prof + élève |
+| [docs/ARCHITECTURE-EN.md](./docs/ARCHITECTURE-EN.md) | Internals, protocol, Mermaid diagrams (FR: [ARCHITECTURE.md](./docs/ARCHITECTURE.md)) |
 | docs/GUIDE-COACH-PWNZZAI.docx | Printable Word guide (embedded diagrams) |
 
 Regenerate the `.docx`:
