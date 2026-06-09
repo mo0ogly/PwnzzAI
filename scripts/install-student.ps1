@@ -298,9 +298,12 @@ if ($Mode -eq 'cohorte' -and $dashboardUrl) {
   if ($reachable) {
     Ok "Dashboard prof joignable depuis l'hote : $dashboardUrl"
   } else {
+    # Port reel = celui de l'URL normalisee (parite avec install-student.sh).
+    $hostport = ($dashboardUrl -replace '^https?://', '') -replace '/.*$', ''
+    if ($hostport -match ':(\d+)$') { $dashboardPort = $Matches[1] } else { $dashboardPort = $DefaultDashboardPort }
     Warn "Dashboard prof $dashboardUrl injoignable depuis l'hote (best-effort)."
     Warn "Note : le coach vise cette URL DEPUIS le conteneur ; verifier que le prof a"
-    Warn 'deploye le dashboard, que le LAN est plat, et le firewall.'
+    Warn "deploye le dashboard, que le LAN est plat, et le firewall (port $dashboardPort)."
   }
 }
 

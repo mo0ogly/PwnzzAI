@@ -283,9 +283,13 @@ if [[ "${MODE}" == "cohorte" && -n "${DASHBOARD_URL}" ]]; then
     if curl -fsS --max-time 3 "${DASHBOARD_URL}" >/dev/null 2>&1; then
         ok "Dashboard prof joignable depuis l'hote : ${DASHBOARD_URL}"
     else
+        # Port reel = celui de l'URL normalisee (pas DASHBOARD_VALUE qui peut etre
+        # un host nu sans port -> on retomberait sur DEFAULT_DASHBOARD_PORT).
+        hostport="${DASHBOARD_URL#*://}"; hostport="${hostport%%/*}"
+        case "${hostport}" in *:*) DASHBOARD_PORT="${hostport##*:}" ;; *) DASHBOARD_PORT="${DEFAULT_DASHBOARD_PORT}" ;; esac
         warn "Dashboard prof ${DASHBOARD_URL} injoignable depuis l'hote (best-effort)."
         warn "Note : le coach vise cette URL DEPUIS le conteneur ; verifier que le prof a"
-        warn "deploye le dashboard, que le LAN est plat, et le firewall (port ${DASHBOARD_VALUE##*:})."
+        warn "deploye le dashboard, que le LAN est plat, et le firewall (port ${DASHBOARD_PORT})."
     fi
 fi
 
