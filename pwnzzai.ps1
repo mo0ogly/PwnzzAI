@@ -39,8 +39,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ---- Constantes ------------------------------------------------------------
-# On se place a la racine du repo (la ou vit docker-compose.yml).
+# On se place a la racine du repo (la ou vit docker-compose.yml) : toutes les
+# commandes docker compose doivent etre lancees depuis ce dossier (parite avec
+# pwnzzai.sh qui fait `cd "$ROOT"`).
 $Root      = $PSScriptRoot
+Set-Location -LiteralPath $Root
 $CoachUrl  = 'http://localhost:8095'
 $RawUrl    = 'http://localhost:8090'
 $HealthUrl = "$CoachUrl/__coach/health"
