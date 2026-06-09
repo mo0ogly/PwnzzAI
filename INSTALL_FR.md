@@ -152,6 +152,12 @@ aucun changement de comportement si non renseignées).
 **Coût (Groq).** Environ **1–3 EUR / matinée / 10 élèves**. Active le
 pay-as-you-go et fixe un spend limit sur la console du fournisseur.
 
+**Piège modèles reasoning.** `gpt-oss-20b`/`gpt-oss-120b` sont des modèles
+*reasoning* : avec un `max_tokens` trop petit ils brûlent le budget en
+raisonnement et renvoient une réponse **vide** (`finish_reason=length`) — ce qui
+ressemble à « le site ne marche pas ». `gpt-oss-20b` suffit et est rapide ; pour
+zéro surprise, prends un modèle non-reasoning comme `groq/llama-3.3-70b-versatile`.
+
 **Résistance à l'amont.** Cela ne nécessite **aucune modification du produit
 OWASP** (c'est LiteLLM qui fait le routage) et résiste aux MAJ amont, car PwnzzAI
 est cloné à un commit pinné — exactement comme le reste du sidecar.

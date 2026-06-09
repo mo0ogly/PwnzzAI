@@ -149,6 +149,12 @@ change when unset).
 **Cost (Groq).** Roughly **1–3 EUR / morning / 10 students**. Enable
 pay-as-you-go and set a spend limit on the provider console.
 
+**Reasoning models caveat.** `gpt-oss-20b`/`gpt-oss-120b` are *reasoning* models:
+with a too-small `max_tokens` they spend the budget thinking and return an
+**empty** answer (`finish_reason=length`) — which looks like "the site is broken".
+`gpt-oss-20b` is enough and fast; if you want zero surprises use a non-reasoning
+model such as `groq/llama-3.3-70b-versatile`.
+
 **Upstream resilience.** This requires **no modification of the OWASP product**
 (LiteLLM is what does the routing) and survives upstream updates, because PwnzzAI
 is cloned at a pinned commit — exactly like the rest of the sidecar.
