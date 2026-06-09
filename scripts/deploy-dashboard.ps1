@@ -46,8 +46,12 @@ if ($TargetDir) {
   $Target = Join-Path $Here '.juicelab-dashboard'
 }
 
-# ---- Lecture .env (sans ecraser une valeur deja dans l'env) ----------------
+# ---- Lecture .env ----------------------------------------------------------
 # Parite avec : if [ -f "$HERE/.env" ]; then set -a; . "$HERE/.env"; set +a; fi
+# Attention : `set -a; . .env` SOURCE le fichier, donc une valeur dans .env
+# ECRASE la variable deja presente dans l'environnement (le commentaire FR du .sh
+# qui dit l'inverse est trompeur ; on suit le comportement reel du code).
+# Precedence fidele au .sh : .env > env courant > defaut.
 # On lit juste les deux cles utiles, derniere occurrence, quotes/espaces retires.
 function Get-EnvVal {
   param([string]$Key, [string]$Default)
@@ -60,21 +64,14 @@ function Get-EnvVal {
       if ($val) { return $val }
     }
   }
+  # Pas de valeur dans .env : on retombe sur l'env courant, puis le defaut.
+  $envVal = [Environment]::GetEnvironmentVariable($Key)
+  if ($envVal) { return $envVal }
   return $Default
 }
 
-# L'env deja exporte gagne sur .env (comme `set -a; . .env` qui n'ecrase pas une
-# variable deja presente dans l'environnement courant).
-$RepoUrl = if ($env:JUICELAB_REPO_URL) {
-  $env:JUICELAB_REPO_URL
-} else {
-  Get-EnvVal -Key 'JUICELAB_REPO_URL' -Default 'https://github.com/mo0ogly/juicelab.git'
-}
-$Ref = if ($env:JUICELAB_DASHBOARD_REF) {
-  $env:JUICELAB_DASHBOARD_REF
-} else {
-  Get-EnvVal -Key 'JUICELAB_DASHBOARD_REF' -Default 'main'
-}
+$RepoUrl = Get-EnvVal -Key 'JUICELAB_REPO_URL' -Default 'https://github.com/mo0ogly/juicelab.git'
+$Ref     = Get-EnvVal -Key 'JUICELAB_DASHBOARD_REF' -Default 'main'
 $Bootstrap = Join-Path (Join-Path $Target 'scripts') 'bootstrap-dashboard.sh'
 
 Write-Host "[deploy-dashboard] source: $RepoUrl @ $Ref -> $Target"
