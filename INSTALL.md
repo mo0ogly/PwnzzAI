@@ -102,6 +102,59 @@ The `.env` file lives at the repo root (copied from `.env.example`).
 
 ---
 
+## Configure an LLM provider (target)
+
+The OWASP product is built on **LiteLLM**, so the *target* assistant (the labs'
+vulnerable AI) can run on many providers with **zero code change** — pure `.env`
+config. The default is local Ollama (100% offline).
+
+**The pattern (3 vars):**
+
+```ini
+MODEL_PROVIDER=openai             # 'openai' = cloud via LiteLLM ; 'ollama' = local (default)
+LITELLM_MODEL=<provider>/<model>  # routes LiteLLM to the real provider
+<PROVIDER>_API_KEY=...            # provider key
+```
+
+`MODEL_PROVIDER=openai` means **"cloud via LiteLLM"**, *not* literally OpenAI.
+The prefix before `/` in `LITELLM_MODEL` selects the actual provider.
+
+| Provider | `MODEL_PROVIDER` | `LITELLM_MODEL` (example) | Key var |
+|---|---|---|---|
+| Ollama (local, default) | `ollama` | — (uses `OLLAMA_MODEL`) | — |
+| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
+| Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
+| Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
+
+**Step by step (example: Groq):**
+
+1. Get a key from your provider (e.g. https://console.groq.com).
+2. In `.env`, set:
+   ```ini
+   MODEL_PROVIDER=openai
+   LITELLM_MODEL=groq/openai/gpt-oss-20b
+   GROQ_API_KEY=gsk_xxx
+   ```
+3. Restart the stack: `./pwnzzai.sh restart`.
+
+**Scope.** Only the `openai_*` cloud labs use this backend; the `ollama_*` labs
+always use local Ollama, so keep the `ollama` service running either way.
+
+**Security.** The key lives only in `.env`, which is gitignored — **never commit
+it**. The compose file passes `GROQ_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`
+and `ANTHROPIC_API_KEY` through to `pwnzzai-app` (all default empty: no behavior
+change when unset).
+
+**Cost (Groq).** Roughly **1–3 EUR / morning / 10 students**. Enable
+pay-as-you-go and set a spend limit on the provider console.
+
+**Upstream resilience.** This requires **no modification of the OWASP product**
+(LiteLLM is what does the routing) and survives upstream updates, because PwnzzAI
+is cloned at a pinned commit — exactly like the rest of the sidecar.
+
+---
+
 ## Teacher dashboard (PROF-ONLY)
 
 **Students do NOT do this.** The central JuiceLab dashboard is deployed **once**

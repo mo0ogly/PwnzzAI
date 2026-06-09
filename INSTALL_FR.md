@@ -103,6 +103,61 @@ Le fichier `.env` vit à la racine du repo (copié depuis `.env.example`).
 
 ---
 
+## Configurer un fournisseur LLM (cible)
+
+Le produit OWASP est bâti sur **LiteLLM** : l'assistant *cible* (l'IA vulnérable
+des labs) peut donc tourner sur de nombreux fournisseurs **sans aucune
+modification de code** — pure config `.env`. Le défaut est Ollama local (100 %
+hors-ligne).
+
+**Le motif (3 variables) :**
+
+```ini
+MODEL_PROVIDER=openai             # 'openai' = cloud via LiteLLM ; 'ollama' = local (défaut)
+LITELLM_MODEL=<fournisseur>/<modèle>  # route LiteLLM vers le vrai fournisseur
+<FOURNISSEUR>_API_KEY=...         # clé du fournisseur
+```
+
+`MODEL_PROVIDER=openai` signifie **« cloud via LiteLLM »**, *pas* littéralement
+OpenAI. Le préfixe avant le `/` dans `LITELLM_MODEL` choisit le vrai fournisseur.
+
+| Fournisseur | `MODEL_PROVIDER` | `LITELLM_MODEL` (exemple) | Variable de clé |
+|---|---|---|---|
+| Ollama (local, défaut) | `ollama` | — (utilise `OLLAMA_MODEL`) | — |
+| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
+| Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
+| Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
+
+**Pas à pas (exemple : Groq) :**
+
+1. Récupérer une clé chez ton fournisseur (ex. https://console.groq.com).
+2. Dans `.env`, mettre :
+   ```ini
+   MODEL_PROVIDER=openai
+   LITELLM_MODEL=groq/openai/gpt-oss-20b
+   GROQ_API_KEY=gsk_xxx
+   ```
+3. Relancer la stack : `./pwnzzai.sh restart`.
+
+**Portée.** Seuls les labs cloud `openai_*` utilisent ce backend ; les labs
+`ollama_*` utilisent toujours Ollama local, donc garde le service `ollama` actif
+dans tous les cas.
+
+**Sécurité.** La clé ne vit que dans `.env`, qui est gitignore — **ne jamais la
+committer**. Le fichier compose transmet `GROQ_API_KEY`, `OPENAI_API_KEY`,
+`GEMINI_API_KEY` et `ANTHROPIC_API_KEY` à `pwnzzai-app` (toutes vides par défaut :
+aucun changement de comportement si non renseignées).
+
+**Coût (Groq).** Environ **1–3 EUR / matinée / 10 élèves**. Active le
+pay-as-you-go et fixe un spend limit sur la console du fournisseur.
+
+**Résistance à l'amont.** Cela ne nécessite **aucune modification du produit
+OWASP** (c'est LiteLLM qui fait le routage) et résiste aux MAJ amont, car PwnzzAI
+est cloné à un commit pinné — exactement comme le reste du sidecar.
+
+---
+
 ## Dashboard prof (RÉSERVÉ AU PROF)
 
 **Les élèves ne font PAS ça.** Le dashboard JuiceLab central se déploie **une

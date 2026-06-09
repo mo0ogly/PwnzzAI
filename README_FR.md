@@ -105,6 +105,34 @@ curl -s http://localhost:8095/__coach/health
 > [INSTALL_FR.md](./INSTALL_FR.md) · guides élève pas-à-pas :
 > [docs/STUDENT-INSTALL-FR.md](./docs/STUDENT-INSTALL-FR.md).
 
+## Configurer un fournisseur LLM (cible)
+
+Le produit OWASP est bâti sur **LiteLLM** : l'assistant *cible* peut donc tourner
+sur de nombreux fournisseurs **sans aucune modification de code** — pure config
+`.env`. Le défaut est Ollama local (hors-ligne). `MODEL_PROVIDER=openai` signifie
+**« cloud via LiteLLM »** (pas forcément OpenAI) ; le préfixe avant le `/` dans
+`LITELLM_MODEL` choisit le vrai fournisseur.
+
+| Fournisseur | `MODEL_PROVIDER` | `LITELLM_MODEL` (exemple) | Variable de clé |
+|---|---|---|---|
+| Ollama (local, défaut) | `ollama` | — (utilise `OLLAMA_MODEL`) | — |
+| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
+| Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
+| Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
+
+Pour basculer la cible sur un fournisseur cloud (ex. Groq) :
+
+1. Dans `.env`, mettre `MODEL_PROVIDER=openai` et `LITELLM_MODEL=groq/openai/gpt-oss-20b`.
+2. Ajouter ta clé : `GROQ_API_KEY=gsk_…` (dans `.env`, qui est gitignore — ne jamais la committer).
+3. Relancer : `./pwnzzai.sh restart`.
+
+Seuls les labs cloud `openai_*` utilisent ceci ; les labs `ollama_*` utilisent
+toujours Ollama local (garder le service `ollama` actif). Cela ne nécessite
+**aucune modification du produit OWASP** (LiteLLM) et résiste aux MAJ amont
+(commit pinné). Voir [INSTALL_FR.md](./INSTALL_FR.md) pour le pas-à-pas complet
+et la note de coût Groq.
+
 ## Câblage cohorte
 
 À régler dans `.env` :
