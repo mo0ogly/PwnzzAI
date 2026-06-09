@@ -278,6 +278,16 @@ GROQ_API_KEY=gsk_xxx
 
 Seuls les labs cloud `openai_*` utilisent ceci ; les labs `ollama_*` utilisent toujours Ollama local, donc garde le service `ollama` actif. Ta cle reste dans `.env` (gitignore) — ne la committe jamais.
 
+> **Si la cible reste sur Ollama malgre la config Groq** : dans l'interface du
+> lab, choisis bien l'option **cloud** (le bouton/onglet du fournisseur). Les
+> pages web envoient le fournisseur explicitement ; un appel API brut sans ce
+> choix retombe sur Ollama (le defaut interne reste `auto`). Detail connu du
+> produit OWASP — voir [UPSTREAM-NOTES.md](./UPSTREAM-NOTES.md).
+>
+> **Reponses vides en cloud** : `gpt-oss-20b` est un modele *reasoning* ; avec un
+> `max_tokens` trop petit il renvoie du vide. Le `20b` suffit en pratique ; sinon
+> prends un modele non-reasoning : `LITELLM_MODEL=groq/llama-3.3-70b-versatile`.
+
 ---
 
 ## 6. Depannage

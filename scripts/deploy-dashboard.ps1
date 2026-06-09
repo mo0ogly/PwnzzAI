@@ -31,6 +31,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# StrictMode : variable non initialisee / propriete inexistante = erreur (pas
+# un $null silencieux). Attrape les fautes de frappe sur les params/membres.
+Set-StrictMode -Version Latest
 
 # ---- Racine du repo (un cran au-dessus de scripts/) ------------------------
 # Parite avec : HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

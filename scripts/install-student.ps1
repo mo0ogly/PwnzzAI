@@ -62,6 +62,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# StrictMode : variable non initialisee / propriete inexistante = erreur (pas
+# un $null silencieux). Attrape les fautes de frappe sur les params/membres.
+Set-StrictMode -Version Latest
 
 # ---- Constantes ------------------------------------------------------------
 $Root        = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path

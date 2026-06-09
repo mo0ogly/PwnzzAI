@@ -22,7 +22,10 @@
 #   ./pwnzzai.sh wipe [-y]             down -v (DESTRUCTIF : supprime ollama_data)
 #   ./pwnzzai.sh help                  cet ecran
 #
-set -u
+# -o pipefail : une commande qui echoue dans un pipe (ex. docker | grep) fait
+# echouer tout le pipe au lieu de masquer l'erreur. Pas de -e : le dispatch par
+# `case` gere ses propres codes retour.
+set -uo pipefail
 
 # ---- Constantes ------------------------------------------------------------
 # On se place a la racine du repo (la ou vit docker-compose.yml) : toutes les
