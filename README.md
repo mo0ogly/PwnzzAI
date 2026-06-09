@@ -158,20 +158,43 @@ hint context). Add or tune labs there; nothing else needs to change.
 
 ## Documentation
 
-Bilingual, plus a distributable Word guide (same template as the JuiceLab docs):
+Bilingual (EN/FR), plus distributable Word guides (same template as the JuiceLab
+docs). 🇫🇷 The French index is in [README_FR.md](./README_FR.md).
+
+**Quick start / scripts**
+
+| Script | Audience | Purpose |
+|---|---|---|
+| [`pwnzzai.sh`](./pwnzzai.sh) / [`pwnzzai.ps1`](./pwnzzai.ps1) | everyone | launcher (`up`/`down`/`restart`/`status`/`logs`/`health`/`models`/`wipe`) |
+| [`scripts/install-student.sh`](./scripts/install-student.sh) / [`.ps1`](./scripts/install-student.ps1) | student | one-command install (solo or cohort; never installs the dashboard) |
+| [`scripts/deploy-dashboard.sh`](./scripts/deploy-dashboard.sh) / [`.ps1`](./scripts/deploy-dashboard.ps1) | teacher | deploy the central dashboard once (sparse checkout) |
+
+Full install reference: [INSTALL.md](./INSTALL.md) (FR: [INSTALL_FR.md](./INSTALL_FR.md)).
+
+**Guides**
 
 | Document | Audience |
 |---|---|
-| [docs/GUIDE-EN.md](./docs/GUIDE-EN.md) | Full guide (EN) — teacher + student |
-| [docs/GUIDE-FR.md](./docs/GUIDE-FR.md) | Guide complet (FR) — prof + élève |
-| [docs/ARCHITECTURE-EN.md](./docs/ARCHITECTURE-EN.md) | Internals, protocol, Mermaid diagrams (FR: [ARCHITECTURE.md](./docs/ARCHITECTURE.md)) |
-| docs/GUIDE-COACH-PWNZZAI.docx | Printable Word guide (embedded diagrams) |
+| [docs/STUDENT-INSTALL-EN.md](./docs/STUDENT-INSTALL-EN.md) | Student install walkthrough (EN, Windows incl.) — FR: [STUDENT-INSTALL-FR.md](./docs/STUDENT-INSTALL-FR.md) |
+| [INSTALL.md](./INSTALL.md) | Install reference (EN) — FR: [INSTALL_FR.md](./INSTALL_FR.md) |
+| [docs/GUIDE-EN.md](./docs/GUIDE-EN.md) | Full guide (EN) — teacher + student — FR: [GUIDE-FR.md](./docs/GUIDE-FR.md) |
+| [docs/ARCHITECTURE-EN.md](./docs/ARCHITECTURE-EN.md) | Internals, protocol, Mermaid diagrams (EN) — FR: [ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
+| docs/GUIDE-INSTALL-ELEVE.docx | Printable Word install guide — **student** (no teacher/dashboard content) |
+| docs/GUIDE-INSTALL-PROF.docx | Printable Word install guide — **teacher** (dashboard deploy, events, judge) |
+| docs/GUIDE-COACH-PWNZZAI.docx | Combined printable Word guide (legacy; the two split guides above are the primary install docs) |
 
-Regenerate the `.docx`:
+Regenerate the split install `.docx` (needs `python3.11` + `python-docx`; the
+default `python3` here is 3.13 without `python-docx`):
 
 ```bash
-cd docs && npm install @mermaid-js/mermaid-cli   # once
-python3 build_coach_guide.py
+cd docs && npm install @mermaid-js/mermaid-cli   # once, for the diagrams (mmdc)
+python3.11 build_install_guides.py               # -> GUIDE-INSTALL-ELEVE/PROF.docx
+```
+
+Regenerate the legacy combined `.docx`:
+
+```bash
+cd docs && python3.11 build_coach_guide.py       # -> GUIDE-COACH-PWNZZAI.docx
 ```
 
 ## Why this survives upstream changes

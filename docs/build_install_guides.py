@@ -16,6 +16,11 @@ Dependances :
       + un Chromium/Chrome (mmdc en a besoin). Si le chromium bundle de puppeteer
       manque, exporter PUPPETEER_EXECUTABLE_PATH vers le binaire systeme.
 
+Interpreteur :
+    Utiliser python3.11 : le `python3` par defaut de la machine est 3.13 et n'a
+    pas python-docx installe. python3.11 a bien python-docx.
+    (Verif : `python3.11 -c "import docx"` doit reussir.)
+
 Usage :
     python3.11 docs/build_install_guides.py
 

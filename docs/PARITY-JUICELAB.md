@@ -216,3 +216,44 @@ Le dashboard prof est central et unique. PwnzzAI le consomme comme client
 (`JUICELAB_DASHBOARD_URL`) ou le deploie via `scripts/deploy-dashboard.sh`
 (sparse checkout pinne de la seule partie prof). Le code serveur n'est jamais
 duplique dans ce repo. Detail cote juicelab : `docs/DASHBOARD-CENTRAL.md`.
+
+## Parité scripts & docs (vs JuiceLab)
+
+Au-delà de la parité *fonctionnelle* de l'overlay élève, le repo atteint
+désormais la parité **outillage + documentation** avec la référence JuiceLab :
+mêmes points d'entrée (un lanceur, un installeur élève, un déploieur prof),
+mêmes paires de docs bilingues, et des guides Word scindés prof/élève.
+
+| Artefact | JuiceLab (réf.) | PwnzzAI | Statut |
+|---|---|---|---|
+| Lanceur compose (sh) | oui | [`pwnzzai.sh`](../pwnzzai.sh) | fait |
+| Lanceur compose (ps1) | oui | [`pwnzzai.ps1`](../pwnzzai.ps1) | fait |
+| Installeur élève (sh) | oui | [`scripts/install-student.sh`](../scripts/install-student.sh) | fait |
+| Installeur élève (ps1) | oui | [`scripts/install-student.ps1`](../scripts/install-student.ps1) | fait |
+| Déploieur dashboard (sh) | oui | [`scripts/deploy-dashboard.sh`](../scripts/deploy-dashboard.sh) | fait |
+| Déploieur dashboard (ps1) | oui | [`scripts/deploy-dashboard.ps1`](../scripts/deploy-dashboard.ps1) | fait |
+| STUDENT-INSTALL FR | oui | [STUDENT-INSTALL-FR.md](./STUDENT-INSTALL-FR.md) | fait |
+| STUDENT-INSTALL EN | oui | [STUDENT-INSTALL-EN.md](./STUDENT-INSTALL-EN.md) | fait |
+| README FR | oui | [README_FR.md](../README_FR.md) | fait |
+| README EN | oui | [README.md](../README.md) | fait |
+| INSTALL FR | oui | [INSTALL_FR.md](../INSTALL_FR.md) | fait |
+| INSTALL EN | oui | [INSTALL.md](../INSTALL.md) | fait |
+| ARCHITECTURE FR | oui | [ARCHITECTURE.md](./ARCHITECTURE.md) | fait |
+| ARCHITECTURE EN | oui | [ARCHITECTURE-EN.md](./ARCHITECTURE-EN.md) | fait |
+| Guide Word élève (.docx) | oui | docs/GUIDE-INSTALL-ELEVE.docx | fait |
+| Guide Word prof (.docx) | oui | docs/GUIDE-INSTALL-PROF.docx | fait |
+
+Différences assumées :
+
+- **Installeur élève sans dashboard** : `install-student.*` ne déploie jamais
+  le serveur prof (même garde-fou que JuiceLab). Le déploiement dashboard est
+  un script prof distinct, et le dashboard reste central/unique (cf.
+  *Topologie dashboard* ci-dessus).
+- **Guides scindés prof/élève** : le `.docx` combiné historique
+  (`GUIDE-COACH-PWNZZAI.docx`) reste présent, mais les deux guides scindés
+  (`GUIDE-INSTALL-ELEVE.docx` sans contenu prof, `GUIDE-INSTALL-PROF.docx`)
+  sont désormais les supports d'install de référence, comme côté JuiceLab.
+- **Régénération `.docx`** : `docs/build_install_guides.py` requiert
+  `python3.11` + `python-docx` (le `python3` par défaut de la machine est 3.13
+  sans `python-docx`) ; voir l'en-tête du script et la section Documentation
+  des README.
