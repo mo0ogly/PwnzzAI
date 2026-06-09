@@ -377,6 +377,60 @@ def section_prerequis(doc: Document) -> None:
               "Windows / macOS : mettre a jour Docker Desktop.")
 
 
+def section_fournisseur_llm(doc: Document, full: bool = False) -> None:
+    """Config du fournisseur LLM de la CIBLE (LiteLLM) — commun eleve/prof.
+
+    full=False (eleve)  : pattern court + table + how-to 3 etapes.
+    full=True  (prof)   : ajoute portee, securite, cout Groq, resistance amont.
+    """
+    para(doc, "Par defaut, l'assistant CIBLE des labs tourne sur Ollama local "
+              "(100% hors-ligne). Le produit OWASP etant bati sur LiteLLM, cette "
+              "cible peut tourner sur de nombreux fournisseurs (Groq, OpenAI, "
+              "Gemini, Anthropic) SANS aucune modification de code — pure config "
+              ".env. MODEL_PROVIDER=openai signifie « cloud via LiteLLM » (pas "
+              "forcement OpenAI) ; le prefixe avant le / dans LITELLM_MODEL "
+              "choisit le vrai fournisseur.")
+    add_table(
+        doc, ["Fournisseur", "MODEL_PROVIDER", "LITELLM_MODEL (exemple)",
+              "Variable de cle"],
+        [
+            ["Ollama (local, defaut)", "ollama", "— (utilise OLLAMA_MODEL)", "—"],
+            ["Groq", "openai", "groq/openai/gpt-oss-20b", "GROQ_API_KEY"],
+            ["OpenAI", "openai", "openai/gpt-4o-mini", "OPENAI_API_KEY"],
+            ["Google Gemini", "openai", "gemini/gemini-2.0-flash", "GEMINI_API_KEY"],
+            ["Anthropic", "openai", "anthropic/claude-3-5-haiku-latest",
+             "ANTHROPIC_API_KEY"],
+        ],
+        [38, 30, 60, 42],
+    )
+    para(doc, "Pour basculer la cible sur un fournisseur cloud (exemple Groq), "
+              "mettre ces trois lignes dans .env puis relancer :")
+    code_block(doc, [
+        "MODEL_PROVIDER=openai",
+        "LITELLM_MODEL=groq/openai/gpt-oss-20b",
+        "GROQ_API_KEY=gsk_xxx",
+        "",
+        "./pwnzzai.sh restart",
+    ])
+    note(doc, "Seuls les labs cloud openai_* utilisent ce backend ; les labs "
+              "ollama_* utilisent toujours Ollama local, donc garde le service "
+              "ollama actif. La cle reste dans .env (gitignore) — ne la committe "
+              "jamais.")
+    if full:
+        note(doc, "Securite : le fichier compose transmet GROQ_API_KEY, "
+                  "OPENAI_API_KEY, GEMINI_API_KEY et ANTHROPIC_API_KEY a "
+                  "pwnzzai-app, toutes vides par defaut (aucun changement de "
+                  "comportement si non renseignees). La cle ne vit que dans .env, "
+                  "jamais committee.")
+        note(doc, "Cout (Groq) : environ 1-3 EUR par matinee pour 10 eleves. "
+                  "Active le pay-as-you-go et fixe un spend limit sur la console "
+                  "du fournisseur (ex. https://console.groq.com).")
+        note(doc, "Resistance a l'amont : aucune modification du produit OWASP "
+                  "(c'est LiteLLM qui route). PwnzzAI etant clone a un commit "
+                  "pinne, cette config survit aux MAJ upstream, comme le reste du "
+                  "sidecar.")
+
+
 def annexe_docker(doc: Document) -> None:
     """Annexe commune : installer Docker + Compose par OS. Appendue aux 2 docs."""
     doc.add_page_break()
@@ -633,7 +687,10 @@ def build_eleve(tmp: Path) -> None:
         ".\\pwnzzai.ps1 up | down | restart | status | logs | health | models | wipe",
     ])
 
-    doc.add_heading("7. Depannage", level=1)
+    doc.add_heading("7. Configurer un fournisseur LLM (cible)", level=1)
+    section_fournisseur_llm(doc, full=False)
+
+    doc.add_heading("8. Depannage", level=1)
     add_table(
         doc, ["Symptome", "Cause / solution"],
         [
@@ -665,7 +722,7 @@ def build_eleve(tmp: Path) -> None:
         [62, 108],
     )
 
-    doc.add_heading("8. Desinstaller", level=1)
+    doc.add_heading("9. Desinstaller", level=1)
     code_block(doc, [
         "./pwnzzai.sh wipe              # down -v : arret + suppression des volumes",
         "cd .. && rm -rf PwnzzAI        # suppression du repo clone",
@@ -832,8 +889,14 @@ def build_prof(tmp: Path) -> None:
     note(doc, "Le modele du juge est independant de celui des labs : labs en 1b "
               "(rapide, " + LABS_MODEL + ") et juge en 3b (fiable, " + JUDGE_MODEL +
               ") sur la meme machine. Regle par COACH_JUDGE_MODEL dans .env.")
+    note(doc, "Le juge et les indices tournent toujours sur Ollama local. La "
+              "CIBLE des labs openai_* peut, elle, tourner sur un fournisseur "
+              "cloud (section suivante).")
 
-    doc.add_heading("7. Teardown", level=1)
+    doc.add_heading("7. Configurer un fournisseur LLM (cible)", level=1)
+    section_fournisseur_llm(doc, full=True)
+
+    doc.add_heading("8. Teardown", level=1)
     para(doc, "Cote eleve (arret de la stack PwnzzAI sur son poste) :")
     code_block(doc, [
         "./pwnzzai.sh down             # arret (conserve les volumes)",

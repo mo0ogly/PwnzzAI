@@ -308,6 +308,13 @@ Le 1er appel après un démarrage charge le modèle en mémoire (quelques dizain
 de secondes) ; les suivants sont rapides — `OLLAMA_KEEP_ALIVE=-1` garde le
 modèle chaud.
 
+> **Cible cloud (optionnel).** Les modèles ci-dessus concernent le **juge/les
+> indices** (toujours Ollama local). L'**assistant cible** des labs `openai_*`
+> peut, lui, tourner sur un fournisseur cloud (Groq, OpenAI, Gemini, Anthropic)
+> via LiteLLM — pure config `.env`, sans modifier le produit OWASP. Voir
+> « Configurer un fournisseur LLM (cible) » dans
+> [../INSTALL_FR.md](../INSTALL_FR.md).
+
 ---
 
 ## 9. Dépannage

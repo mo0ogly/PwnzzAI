@@ -241,6 +241,28 @@ docker compose down -v      # full reset (wipes ollama_data: model re-pull requi
 
 Your coach progress (token, scores, hints, journals, quiz, badges) is stored **client-side** in `localStorage` (key `pwnzzai_coach_v1`). It survives container restarts. A `docker compose down -v` (or `./pwnzzai.sh wipe`) deletes the `ollama_data` volume: you will have to **re-pull the models** (`./pwnzzai.sh models`).
 
+### Optional: use a cloud LLM for the target
+
+By default the target assistant runs on **local Ollama** (offline). If you prefer a cloud provider (faster, more reliable), you can switch it in `.env` — the OWASP product uses **LiteLLM**, so no code change is needed. `MODEL_PROVIDER=openai` just means "cloud via LiteLLM"; the prefix before `/` in `LITELLM_MODEL` picks the real provider.
+
+| Provider | `MODEL_PROVIDER` | `LITELLM_MODEL` (example) | Key var |
+|---|---|---|---|
+| Ollama (local, default) | `ollama` | — (uses `OLLAMA_MODEL`) | — |
+| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
+| Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
+| Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
+
+Set these three lines in `.env` (Groq example), then restart with `./pwnzzai.sh restart`:
+
+```ini
+MODEL_PROVIDER=openai
+LITELLM_MODEL=groq/openai/gpt-oss-20b
+GROQ_API_KEY=gsk_xxx
+```
+
+Only the `openai_*` cloud labs use this; `ollama_*` labs always use local Ollama, so keep the `ollama` service running. Your key stays in `.env` (gitignored) — never commit it.
+
 ---
 
 ## 6. Troubleshooting

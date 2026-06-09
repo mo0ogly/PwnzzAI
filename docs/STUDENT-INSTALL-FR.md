@@ -241,6 +241,28 @@ docker compose down -v      # reset complet (efface ollama_data : re-tirage des 
 
 Ta progression coach (jeton, scores, indices, journaux, quiz, badges) est stockee **cote navigateur** dans `localStorage` (cle `pwnzzai_coach_v1`). Elle survit aux redemarrages de conteneurs. Un `docker compose down -v` (ou `./pwnzzai.sh wipe`) efface le volume `ollama_data` : il faudra **re-tirer les modeles** (`./pwnzzai.sh models`).
 
+### Optionnel : utiliser un LLM cloud pour la cible
+
+Par defaut l'assistant cible tourne sur **Ollama local** (hors-ligne). Si tu preferes un fournisseur cloud (plus rapide, plus fiable), tu peux le basculer dans `.env` — le produit OWASP utilise **LiteLLM**, donc aucune modif de code n'est necessaire. `MODEL_PROVIDER=openai` signifie juste « cloud via LiteLLM » ; le prefixe avant le `/` dans `LITELLM_MODEL` choisit le vrai fournisseur.
+
+| Fournisseur | `MODEL_PROVIDER` | `LITELLM_MODEL` (exemple) | Variable de cle |
+|---|---|---|---|
+| Ollama (local, defaut) | `ollama` | — (utilise `OLLAMA_MODEL`) | — |
+| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
+| Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
+| Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
+
+Mets ces trois lignes dans `.env` (exemple Groq), puis relance avec `./pwnzzai.sh restart` :
+
+```ini
+MODEL_PROVIDER=openai
+LITELLM_MODEL=groq/openai/gpt-oss-20b
+GROQ_API_KEY=gsk_xxx
+```
+
+Seuls les labs cloud `openai_*` utilisent ceci ; les labs `ollama_*` utilisent toujours Ollama local, donc garde le service `ollama` actif. Ta cle reste dans `.env` (gitignore) — ne la committe jamais.
+
 ---
 
 ## 6. Depannage

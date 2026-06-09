@@ -302,6 +302,12 @@ scripts/pull-models.sh
 The first call after a start loads the model into memory (tens of seconds);
 later calls are fast — `OLLAMA_KEEP_ALIVE=-1` keeps the model warm.
 
+> **Cloud target (optional).** The models above are for the **judge/hints**
+> (always local Ollama). The labs' **target assistant** for the `openai_*` labs
+> can instead run on a cloud provider (Groq, OpenAI, Gemini, Anthropic) through
+> LiteLLM — pure `.env` config, no change to the OWASP product. See "Configure an
+> LLM provider (target)" in [../INSTALL.md](../INSTALL.md).
+
 ---
 
 ## 9. Troubleshooting

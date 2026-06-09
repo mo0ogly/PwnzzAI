@@ -43,6 +43,18 @@ services:
       - SECRET_KEY=dev-secret-key-change-in-production
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:1b}
+      # --- Backend LLM de la CIBLE (labs cloud openai_*) ---
+      # Defaut ollama (100% local, offline) : ces vars vides => comportement
+      # ACTUEL inchange. Pour basculer la cible sur Groq, renseigner
+      # MODEL_PROVIDER / LITELLM_MODEL / GROQ_API_KEY dans .env.
+      # Pure config LiteLLM : AUCUNE modif du produit OWASP (commit pinne) ->
+      # resiste aux MAJ upstream, comme le reste du sidecar.
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-ollama}
+      - LITELLM_MODEL=${LITELLM_MODEL:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 
   pwnzzai-coach:
     build:
