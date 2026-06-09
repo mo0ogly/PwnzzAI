@@ -107,6 +107,18 @@ if (-not $bash) {
 }
 
 # bash present : on reproduit fidelement la version .sh (vars exportees + appel).
+# Le .sh fait `set -a; . "$HERE/.env"; set +a`, qui exporte TOUTES les cles de
+# .env vers le bootstrap (pas seulement les deux utiles). On fait pareil ici
+# pour une vraie parite : on lit chaque KEY=VALUE de .env et on l'exporte.
+$envFile = Join-Path $Here '.env'
+if (Test-Path -LiteralPath $envFile) {
+  foreach ($l in (Get-Content -LiteralPath $envFile)) {
+    if ($l -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
+      $env:"$($Matches[1])" = $Matches[2].Trim().Trim('"').Trim("'")
+    }
+  }
+}
+# Les deux cles documentees gagnent sur d'eventuelles valeurs vides de .env.
 $env:JUICELAB_REPO_URL      = $RepoUrl
 $env:JUICELAB_DASHBOARD_REF = $Ref
 & $bash.Source $Bootstrap $Target

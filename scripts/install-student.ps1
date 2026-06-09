@@ -116,7 +116,9 @@ function Get-EnvValue {
 # La valeur peut etre vide. Preserve les autres lignes telles quelles.
 function Set-EnvValue {
   param([string]$Key, [string]$Value)
-  if (-not (Test-Path $EnvFile)) { Set-Content -LiteralPath $EnvFile -Value '' -NoNewline }
+  # -Encoding utf8 : parite octet-fidele avec le sed du .sh (sinon PowerShell 5.1
+  # ecrit en ANSI/locale et casse les labels accentues).
+  if (-not (Test-Path $EnvFile)) { Set-Content -LiteralPath $EnvFile -Value '' -NoNewline -Encoding utf8 }
   $lines = @(Get-Content -LiteralPath $EnvFile)
   $pattern = "^$([regex]::Escape($Key))="
   $found = $false
@@ -124,7 +126,7 @@ function Set-EnvValue {
     if ($l -match $pattern) { $found = $true; "$Key=$Value" } else { $l }
   }
   if (-not $found) { $out = @($out) + "$Key=$Value" }
-  Set-Content -LiteralPath $EnvFile -Value $out
+  Set-Content -LiteralPath $EnvFile -Value $out -Encoding utf8
 }
 
 # Normalise -Dashboard en URL complete (parite avec normalize_dashboard_url du .sh).
