@@ -1,6 +1,6 @@
 # JuiceLab Coach for PwnzzAI — Guide (EN)
 
-> French version: [GUIDE-FR.md](./GUIDE-FR.md) · Technical details: [ARCHITECTURE.md](./ARCHITECTURE.md)
+> French version: [GUIDE-FR.md](./GUIDE-FR.md) · Technical details: [ARCHITECTURE-EN.md](./ARCHITECTURE-EN.md)
 
 The **JuiceLab Coach** turns [OWASP PwnzzAI](https://github.com/OWASP/PwnzzAI)
 — the deliberately vulnerable pizza shop for learning LLM security — into a
@@ -327,4 +327,4 @@ The proxy knows **no internal route** of PwnzzAI: it forwards everything and
 only injects a `<script>` tag. Transcript capture is generic (any `fetch`/XHR
 POST carrying a text field). If OWASP renames a route or restyles a page, the
 coach keeps working; only `labs.json` may need a path update for lab
-**detection**. See [ARCHITECTURE.md](./ARCHITECTURE.md).
+**detection**. See [ARCHITECTURE-EN.md](./ARCHITECTURE-EN.md).
