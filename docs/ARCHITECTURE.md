@@ -1,5 +1,7 @@
 # Coach JuiceLab pour PwnzzAI — Architecture
 
+> 🇬🇧 English : [ARCHITECTURE-EN.md](./ARCHITECTURE-EN.md)
+>
 > Guides utilisateur : [GUIDE-FR.md](./GUIDE-FR.md) · [GUIDE-EN.md](./GUIDE-EN.md)
 
 Ce document décrit le fonctionnement interne du sidecar coach : flux de

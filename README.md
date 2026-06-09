@@ -1,5 +1,7 @@
 # JuiceLab Coach for PwnzzAI
 
+🇫🇷 Français : [README_FR.md](./README_FR.md)
+
 A pedagogical **sidecar** that turns OWASP [PwnzzAI](https://github.com/OWASP/PwnzzAI)
 into a guided, cohort-tracked lab — **without modifying a single line of the
 OWASP product**. It sits in front of PwnzzAI as a transparent reverse proxy
@@ -97,6 +99,9 @@ Check health:
 curl -s http://localhost:8095/__coach/health
 # {"ok":true,"ollama":true,"dashboard_configured":true}
 ```
+
+> Detailed install (one-command, Windows included): [INSTALL.md](./INSTALL.md) ·
+> step-by-step student guides: [docs/STUDENT-INSTALL-EN.md](./docs/STUDENT-INSTALL-EN.md).
 
 ## Cohort wiring
 
