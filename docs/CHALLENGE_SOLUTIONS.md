@@ -1,5 +1,7 @@
 # PwnzzAI — challenge solutions & recette (ground truth blindée)
 
+*English version: [CHALLENGE_SOLUTIONS-EN.md](./CHALLENGE_SOLUTIONS-EN.md).*
+
 Recette fonctionnelle des labs OWASP-LLM de PwnzzAI. **Source de vérité** pour
 « qu'est-ce qui compte comme résolu », et **harnais exécutable** pour le vérifier.
 
