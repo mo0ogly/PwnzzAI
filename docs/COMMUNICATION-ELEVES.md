@@ -1,5 +1,7 @@
 # 📣 PwnzzAI — Communication élèves : corrigé des challenges + option Groq
 
+*English version: [COMMUNICATION-STUDENTS-EN.md](./COMMUNICATION-STUDENTS-EN.md).*
+
 Message prêt à diffuser (chat / mail). Adapté FR.
 
 ---

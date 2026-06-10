@@ -1,5 +1,7 @@
 # PwnzzAI — Corrections des challenges (corrigé élève testé, FR — **depuis l'interface**)
 
+*English version: [CORRECTIONS-CHALLENGES-EN.md](./CORRECTIONS-CHALLENGES-EN.md).*
+
 Corrigé des labs OWASP-LLM, **fait depuis l'interface web** et **rejoué en vrai le
 2026-06-10** sur deux cibles : **Ollama local** (`llama3.2:1b`/`3b`) et **Groq**
 (`groq/openai/gpt-oss-20b`). Chaque lab indique le **résultat réellement observé**.
