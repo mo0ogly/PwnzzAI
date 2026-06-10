@@ -263,7 +263,7 @@ By default the target assistant runs on **local Ollama** (offline). If you prefe
 | Provider | `MODEL_PROVIDER` | `LITELLM_MODEL` (example) | Key var |
 |---|---|---|---|
 | Ollama (local, default) | `ollama` | — (uses `OLLAMA_MODEL`) | — |
-| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| Groq (recommended) | `openai` | `groq/llama-3.3-70b-versatile` | `GROQ_API_KEY` |
 | OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
 | Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
 | Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
@@ -272,7 +272,7 @@ Set these three lines in `.env` (Groq example), then restart with `./pwnzzai.sh 
 
 ```ini
 MODEL_PROVIDER=openai
-LITELLM_MODEL=groq/openai/gpt-oss-20b
+LITELLM_MODEL=groq/llama-3.3-70b-versatile
 GROQ_API_KEY=gsk_xxx
 ```
 
@@ -284,9 +284,12 @@ Only the `openai_*` cloud labs use this; `ollama_*` labs always use local Ollama
 > internal default stays `auto`). Known OWASP product quirk — see
 > [UPSTREAM-NOTES.md](./UPSTREAM-NOTES.md).
 >
-> **Empty cloud replies**: `gpt-oss-20b` is a *reasoning* model; with a too-small
-> `max_tokens` it returns empty. `20b` is fine in practice; otherwise use a
-> non-reasoning model: `LITELLM_MODEL=groq/llama-3.3-70b-versatile`.
+> **Empty cloud replies**: avoid `groq/openai/gpt-oss-20b` — it is a *reasoning*
+> model that often returns empty (tested: `HTTP 500` / `response:""` on some labs).
+> Stick with `groq/llama-3.3-70b-versatile` (non-reasoning, reliable).
+>
+> **Check the key is valid**: a Groq key starts with `gsk_`. Quick test:
+> `curl -s -o /dev/null -w "%{http_code}\n" https://api.groq.com/openai/v1/models -H "Authorization: Bearer gsk_..."` must return `200` (a `401` = invalid key).
 
 ---
 

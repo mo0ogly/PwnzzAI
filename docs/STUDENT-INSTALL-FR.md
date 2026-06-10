@@ -263,7 +263,7 @@ Par defaut l'assistant cible tourne sur **Ollama local** (hors-ligne). Si tu pre
 | Fournisseur | `MODEL_PROVIDER` | `LITELLM_MODEL` (exemple) | Variable de cle |
 |---|---|---|---|
 | Ollama (local, defaut) | `ollama` | — (utilise `OLLAMA_MODEL`) | — |
-| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| Groq (recommande) | `openai` | `groq/llama-3.3-70b-versatile` | `GROQ_API_KEY` |
 | OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
 | Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
 | Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
@@ -272,7 +272,7 @@ Mets ces trois lignes dans `.env` (exemple Groq), puis relance avec `./pwnzzai.s
 
 ```ini
 MODEL_PROVIDER=openai
-LITELLM_MODEL=groq/openai/gpt-oss-20b
+LITELLM_MODEL=groq/llama-3.3-70b-versatile
 GROQ_API_KEY=gsk_xxx
 ```
 
@@ -284,9 +284,12 @@ Seuls les labs cloud `openai_*` utilisent ceci ; les labs `ollama_*` utilisent t
 > choix retombe sur Ollama (le defaut interne reste `auto`). Detail connu du
 > produit OWASP — voir [UPSTREAM-NOTES.md](./UPSTREAM-NOTES.md).
 >
-> **Reponses vides en cloud** : `gpt-oss-20b` est un modele *reasoning* ; avec un
-> `max_tokens` trop petit il renvoie du vide. Le `20b` suffit en pratique ; sinon
-> prends un modele non-reasoning : `LITELLM_MODEL=groq/llama-3.3-70b-versatile`.
+> **Reponses vides en cloud** : evite `groq/openai/gpt-oss-20b` — c'est un modele
+> *reasoning* qui renvoie souvent du vide (teste : `HTTP 500` / `response:""` sur
+> certains labs). Reste sur `groq/llama-3.3-70b-versatile` (non-reasoning, fiable).
+>
+> **Verifier que la cle est valide** : une cle Groq commence par `gsk_`. Test rapide :
+> `curl -s -o /dev/null -w "%{http_code}\n" https://api.groq.com/openai/v1/models -H "Authorization: Bearer gsk_..."` doit renvoyer `200` (un `401` = cle invalide).
 
 ---
 
