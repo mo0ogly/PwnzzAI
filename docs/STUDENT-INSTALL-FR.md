@@ -220,6 +220,34 @@ Le panneau coach ouvert (onglets Briefing / Indices / Journal / Quiz / Progressi
 >
 > Le prof voit la colonne de ton **label** dans sa matrice de cohorte ; il n'a pas besoin de ton compte PwnzzAI.
 
+### Comment ta reussite arrive chez le prof (mode cohorte)
+
+Tu n'envoies **rien a la main** : le coach s'en charge. En trois temps.
+
+1. **Inscris-toi a la cohorte (une fois).** Dans le panneau coach, bloc
+   **« Rejoins ta cohorte (pour que le prof te suive) »** : saisis **ton email**
+   et clique **« Rejoindre la cohorte »**. Ton statut passe a **« En attente
+   d'approbation du prof »**, puis a **« Inscrit »** une fois que le prof a valide
+   ta demande cote dashboard. L'email est l'**identite** que le prof voit dans sa
+   liste (en plus du label de ton poste).
+
+2. **Valide un lab.** Apres avoir attaque l'assistant, onglet **Progression** →
+   **« Verifier ma reussite »**. Si le **juge** rend *Reussi*, le coach **pousse
+   automatiquement** un evenement `challenge_solved` vers le dashboard du prof
+   (POST interne `/api/sync`). Aucune action de plus de ta part.
+
+3. **Recupere ta preuve signee (optionnel).** Une fois le `challenge_solved`
+   recu, le dashboard **signe** une preuve (HMAC-SHA256). Bouton **« Telecharger
+   la preuve »** : tu obtiens un fichier markdown signe par le serveur (la preuve
+   n'existe **que** si le dashboard a bien recu ta reussite — sinon « Preuve
+   indisponible »).
+
+> **Rien ne part sans dashboard.** En **mode solo** (pas de `-d`), il n'y a ni
+> inscription ni envoi : `challenge_solved` reste local, et « Telecharger la
+> preuve » n'est pas disponible. La securite est cote serveur : la cohorte et la
+> signature sont gerees par le dashboard, un eleve ne peut pas falsifier la preuve
+> d'un autre depuis son navigateur.
+
 Si quelque chose echoue, voir § 6 ci-dessous.
 
 ---

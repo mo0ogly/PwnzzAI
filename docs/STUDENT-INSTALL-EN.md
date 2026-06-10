@@ -220,6 +220,32 @@ The coach panel open (Briefing / Hints / Journal / Quiz / Progress tabs) :
 >
 > The teacher sees your **label** column in the cohort matrix; they do not need your PwnzzAI account.
 
+### How your success reaches the teacher (cohort mode)
+
+You send **nothing by hand**: the coach does it. In three steps.
+
+1. **Join the cohort (once).** In the coach panel, the **"Join your cohort (so the
+   teacher can track you)"** block: enter **your email** and click **"Join the
+   cohort"**. Your status becomes **"Waiting for teacher approval"**, then
+   **"Enrolled"** once the teacher approves your request on the dashboard. The
+   email is the **identity** the teacher sees in their roster (in addition to your
+   machine label).
+
+2. **Validate a lab.** After attacking the assistant, **Progress** tab →
+   **"Check my success"**. If the **judge** returns *Solved*, the coach
+   **automatically pushes** a `challenge_solved` event to the teacher dashboard
+   (internal `POST /api/sync`). Nothing more to do.
+
+3. **Get your signed proof (optional).** Once `challenge_solved` is received, the
+   dashboard **signs** a proof (HMAC-SHA256). Button **"Download proof"**: you get
+   a markdown file signed by the server (the proof exists **only** if the dashboard
+   actually received your success — otherwise "Proof unavailable").
+
+> **Nothing leaves without a dashboard.** In **solo mode** (no `-d`), there is no
+> enrolment and no upload: `challenge_solved` stays local, and "Download proof" is
+> unavailable. Security is server-side: the cohort and the signature are handled by
+> the dashboard, so a student cannot forge another student's proof from the browser.
+
 If any of those fail, see § 6 below.
 
 ---
