@@ -62,7 +62,52 @@ Le fichier `.env` est **ignoré par git** → votre clé ne part jamais en ligne
 conteneurs. Tant que vous n'avez pas relancé, l'ancienne config reste active et
 votre clé n'est pas prise en compte.
 
+## 4) Changer un paramètre APRÈS l'installation
+
+Tous les réglages sont dans le fichier **`.env`** à la racine du dépôt. La règle
+est toujours la même :
+
+> **Éditer `.env` → enregistrer → redémarrer la stack.**
+> Une modif de `.env` n'est **jamais** prise en compte « à chaud » : Docker ne
+> relit ce fichier qu'au (re)démarrage des conteneurs.
+
+```bash
+# 1. éditer le fichier
+nano .env            # ou VS Code
+
+# 2. redémarrer pour appliquer
+./pwnzzai.sh restart
+```
+
+**Exemples de réglages courants :**
+
+| Je veux… | Ligne dans `.env` | Étape en plus |
+|---|---|---|
+| Changer le modèle des labs | `OLLAMA_MODEL=llama3.2:3b` | tirer le modèle : `./pwnzzai.sh models` **avant** le restart |
+| Changer le modèle du coach | `COACH_JUDGE_MODEL=llama3.2:3b` | idem : `./pwnzzai.sh models` |
+| Passer en cloud Groq | `MODEL_PROVIDER=openai` + `LITELLM_MODEL=groq/llama-3.3-70b-versatile` + `GROQ_API_KEY=gsk_…` | clé perso |
+| Revenir en tout-local | `MODEL_PROVIDER=ollama` | — |
+
+⚠️ **Si vous changez `OLLAMA_MODEL` pour un modèle non encore téléchargé**, lancez
+`./pwnzzai.sh models` **avant** `restart`, sinon la page affichera « modèle
+indisponible » (Docker ne télécharge pas tout seul).
+
+## 5) Reprendre le lendemain
+
+Pas besoin de tout réinstaller. Au début de séance :
+
+```bash
+cd PwnzzAI
+git pull              # récupère les dernières corrections / docs
+./pwnzzai.sh up       # relance la stack (ou ./pwnzzai.sh restart si déjà lancée)
+./pwnzzai.sh status   # vérifie que les 3 services tournent
+```
+
+Les modèles déjà tirés la veille **restent** (pas besoin de re-`models`, sauf si
+vous avez changé de modèle dans `.env`).
+
 ---
 
 **En résumé :** Ollama pour **gagner** les exos, Groq pour **comprendre** les
-défenses. Le corrigé est dans `docs/CORRECTIONS-CHALLENGES-FR.md` après un `git pull`.
+défenses. Toute modif de `.env` → **`./pwnzzai.sh restart`**. Le corrigé est dans
+`docs/CORRECTIONS-CHALLENGES-FR.md` après un `git pull`.
