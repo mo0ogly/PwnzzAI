@@ -395,7 +395,8 @@ def section_fournisseur_llm(doc: Document, full: bool = False) -> None:
               "Variable de cle"],
         [
             ["Ollama (local, defaut)", "ollama", "— (utilise OLLAMA_MODEL)", "—"],
-            ["Groq", "openai", "groq/openai/gpt-oss-20b", "GROQ_API_KEY"],
+            ["Groq (recommande)", "openai", "groq/llama-3.3-70b-versatile",
+             "GROQ_API_KEY"],
             ["OpenAI", "openai", "openai/gpt-4o-mini", "OPENAI_API_KEY"],
             ["Google Gemini", "openai", "gemini/gemini-2.0-flash", "GEMINI_API_KEY"],
             ["Anthropic", "openai", "anthropic/claude-3-5-haiku-latest",
@@ -407,11 +408,16 @@ def section_fournisseur_llm(doc: Document, full: bool = False) -> None:
               "mettre ces trois lignes dans .env puis relancer :")
     code_block(doc, [
         "MODEL_PROVIDER=openai",
-        "LITELLM_MODEL=groq/openai/gpt-oss-20b",
+        "LITELLM_MODEL=groq/llama-3.3-70b-versatile",
         "GROQ_API_KEY=gsk_xxx",
         "",
         "./pwnzzai.sh restart",
     ])
+    note(doc, "Modele Groq : prends groq/llama-3.3-70b-versatile (non-reasoning, "
+              "fiable). Evite groq/openai/gpt-oss-20b — modele reasoning qui "
+              "renvoie souvent du vide (teste : HTTP 500 / response vide sur "
+              "certains labs). Cle valide = commence par gsk_ et renvoie 200 sur "
+              "https://api.groq.com/openai/v1/models (401 = invalide).")
     note(doc, "Seuls les labs cloud openai_* utilisent ce backend ; les labs "
               "ollama_* utilisent toujours Ollama local, donc garde le service "
               "ollama actif. La cle reste dans .env (gitignore) — ne la committe "
