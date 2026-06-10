@@ -206,22 +206,29 @@ Full install reference: [INSTALL.md](./INSTALL.md) (FR: [INSTALL_FR.md](./INSTAL
 | [INSTALL.md](./INSTALL.md) | Install reference (EN) — FR: [INSTALL_FR.md](./INSTALL_FR.md) |
 | [docs/GUIDE-EN.md](./docs/GUIDE-EN.md) | Full guide (EN) — teacher + student — FR: [GUIDE-FR.md](./docs/GUIDE-FR.md) |
 | [docs/ARCHITECTURE-EN.md](./docs/ARCHITECTURE-EN.md) | Internals, protocol, Mermaid diagrams (EN) — FR: [ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
-| docs/GUIDE-INSTALL-ELEVE.docx | Printable Word install guide — **student** (no teacher/dashboard content) |
-| docs/GUIDE-INSTALL-PROF.docx | Printable Word install guide — **teacher** (dashboard deploy, events, judge) |
-| docs/GUIDE-COACH-PWNZZAI.docx | Combined printable Word guide (legacy; the two split guides above are the primary install docs) |
+| [docs/CORRECTIONS-CHALLENGES-EN.md](./docs/CORRECTIONS-CHALLENGES-EN.md) | Tested challenge corrections, from the UI (EN) — FR: [CORRECTIONS-CHALLENGES-FR.md](./docs/CORRECTIONS-CHALLENGES-FR.md) |
+| [docs/COMMUNICATION-STUDENTS-EN.md](./docs/COMMUNICATION-STUDENTS-EN.md) | Ready-to-share student message: corrections + Groq option (EN) — FR: [COMMUNICATION-ELEVES.md](./docs/COMMUNICATION-ELEVES.md) |
+| docs/GUIDE-INSTALL-ELEVE.docx | Printable Word install guide — **student** (FR) — EN: docs/GUIDE-INSTALL-STUDENT-EN.docx |
+| docs/GUIDE-INSTALL-PROF.docx | Printable Word install guide — **teacher** (FR) — EN: docs/GUIDE-INSTALL-PROF-EN.docx |
+| docs/GUIDE-COACH-PWNZZAI.docx | Combined printable Word guide (FR) — EN: docs/GUIDE-COACH-PWNZZAI-EN.docx |
 
-Regenerate the split install `.docx` (needs `python3.11` + `python-docx`; the
+Regenerate the install `.docx` (needs `python3.11` + `python-docx`; the
 default `python3` here is 3.13 without `python-docx`):
 
 ```bash
 cd docs && npm install @mermaid-js/mermaid-cli   # once, for the diagrams (mmdc)
-python3.11 build_install_guides.py               # -> GUIDE-INSTALL-ELEVE/PROF.docx
+python3.11 build_eleve_guide_fr.py               # -> GUIDE-INSTALL-ELEVE.docx (FR)
+python3.11 build_eleve_guide_en.py               # -> GUIDE-INSTALL-STUDENT-EN.docx (EN)
+python3.11 build_install_guides.py               # -> GUIDE-INSTALL-PROF.docx (FR)
+python3.11 build_install_guides_en.py            # -> GUIDE-INSTALL-PROF-EN.docx (EN)
 ```
 
-Regenerate the legacy combined `.docx`:
+Regenerate the combined coach `.docx`:
 
 ```bash
-cd docs && python3.11 build_coach_guide.py       # -> GUIDE-COACH-PWNZZAI.docx
+cd docs
+python3.11 build_coach_guide.py                  # -> GUIDE-COACH-PWNZZAI.docx (FR)
+python3.11 build_coach_guide_en.py               # -> GUIDE-COACH-PWNZZAI-EN.docx (EN)
 ```
 
 ## Why this survives upstream changes

@@ -211,22 +211,29 @@ Référence d'installation complète : [INSTALL_FR.md](./INSTALL_FR.md) (EN : [I
 | [INSTALL_FR.md](./INSTALL_FR.md) | Référence d'installation (FR) — EN : [INSTALL.md](./INSTALL.md) |
 | [docs/GUIDE-FR.md](./docs/GUIDE-FR.md) | Guide complet (FR) — prof + élève — EN : [GUIDE-EN.md](./docs/GUIDE-EN.md) |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Internes, protocole, diagrammes Mermaid (FR) — EN : [ARCHITECTURE-EN.md](./docs/ARCHITECTURE-EN.md) |
-| docs/GUIDE-INSTALL-ELEVE.docx | Guide Word imprimable — **élève** (aucun contenu prof/dashboard) |
-| docs/GUIDE-INSTALL-PROF.docx | Guide Word imprimable — **prof** (déploiement dashboard, events, juge) |
-| docs/GUIDE-COACH-PWNZZAI.docx | Guide Word combiné (historique ; les deux guides scindés ci-dessus sont les docs d'install principales) |
+| [docs/CORRECTIONS-CHALLENGES-FR.md](./docs/CORRECTIONS-CHALLENGES-FR.md) | Corrigé testé des challenges, depuis l'interface (FR) — EN : [CORRECTIONS-CHALLENGES-EN.md](./docs/CORRECTIONS-CHALLENGES-EN.md) |
+| [docs/COMMUNICATION-ELEVES.md](./docs/COMMUNICATION-ELEVES.md) | Message élèves prêt à diffuser : corrigé + option Groq (FR) — EN : [COMMUNICATION-STUDENTS-EN.md](./docs/COMMUNICATION-STUDENTS-EN.md) |
+| docs/GUIDE-INSTALL-ELEVE.docx | Guide Word imprimable — **élève** (FR) — EN : docs/GUIDE-INSTALL-STUDENT-EN.docx |
+| docs/GUIDE-INSTALL-PROF.docx | Guide Word imprimable — **prof** (FR) — EN : docs/GUIDE-INSTALL-PROF-EN.docx |
+| docs/GUIDE-COACH-PWNZZAI.docx | Guide Word combiné (FR) — EN : docs/GUIDE-COACH-PWNZZAI-EN.docx |
 
-Régénérer les `.docx` d'install scindés (nécessite `python3.11` + `python-docx` ;
+Régénérer les `.docx` d'install (nécessite `python3.11` + `python-docx` ;
 le `python3` par défaut ici est 3.13 sans `python-docx`) :
 
 ```bash
 cd docs && npm install @mermaid-js/mermaid-cli   # une fois, pour les diagrammes (mmdc)
-python3.11 build_install_guides.py               # -> GUIDE-INSTALL-ELEVE/PROF.docx
+python3.11 build_eleve_guide_fr.py               # -> GUIDE-INSTALL-ELEVE.docx (FR)
+python3.11 build_eleve_guide_en.py               # -> GUIDE-INSTALL-STUDENT-EN.docx (EN)
+python3.11 build_install_guides.py               # -> GUIDE-INSTALL-PROF.docx (FR)
+python3.11 build_install_guides_en.py            # -> GUIDE-INSTALL-PROF-EN.docx (EN)
 ```
 
-Régénérer le `.docx` combiné historique :
+Régénérer le `.docx` combiné coach :
 
 ```bash
-cd docs && python3.11 build_coach_guide.py       # -> GUIDE-COACH-PWNZZAI.docx
+cd docs
+python3.11 build_coach_guide.py                  # -> GUIDE-COACH-PWNZZAI.docx (FR)
+python3.11 build_coach_guide_en.py               # -> GUIDE-COACH-PWNZZAI-EN.docx (EN)
 ```
 
 ## Pourquoi ça survit aux changements amont
