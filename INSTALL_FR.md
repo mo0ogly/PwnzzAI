@@ -124,7 +124,7 @@ OpenAI. Le préfixe avant le `/` dans `LITELLM_MODEL` choisit le vrai fournisseu
 | Fournisseur | `MODEL_PROVIDER` | `LITELLM_MODEL` (exemple) | Variable de clé |
 |---|---|---|---|
 | Ollama (local, défaut) | `ollama` | — (utilise `OLLAMA_MODEL`) | — |
-| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| Groq (recommandé) | `openai` | `groq/llama-3.3-70b-versatile` | `GROQ_API_KEY` |
 | OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
 | Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
 | Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
@@ -135,7 +135,7 @@ OpenAI. Le préfixe avant le `/` dans `LITELLM_MODEL` choisit le vrai fournisseu
 2. Dans `.env`, mettre :
    ```ini
    MODEL_PROVIDER=openai
-   LITELLM_MODEL=groq/openai/gpt-oss-20b
+   LITELLM_MODEL=groq/llama-3.3-70b-versatile
    GROQ_API_KEY=gsk_xxx
    ```
 3. Relancer la stack : `./pwnzzai.sh restart`.
@@ -152,11 +152,15 @@ aucun changement de comportement si non renseignées).
 **Coût (Groq).** Environ **1–3 EUR / matinée / 10 élèves**. Active le
 pay-as-you-go et fixe un spend limit sur la console du fournisseur.
 
-**Piège modèles reasoning.** `gpt-oss-20b`/`gpt-oss-120b` sont des modèles
-*reasoning* : avec un `max_tokens` trop petit ils brûlent le budget en
-raisonnement et renvoient une réponse **vide** (`finish_reason=length`) — ce qui
-ressemble à « le site ne marche pas ». `gpt-oss-20b` suffit et est rapide ; pour
-zéro surprise, prends un modèle non-reasoning comme `groq/llama-3.3-70b-versatile`.
+**Piège modèles reasoning.** Préfère `groq/llama-3.3-70b-versatile` (non-reasoning,
+fiable). Évite `gpt-oss-20b`/`gpt-oss-120b` : ce sont des modèles *reasoning* qui
+brûlent le budget en raisonnement et renvoient une réponse **vide** (testé :
+`HTTP 500` / `response:""` sur certains labs) — ce qui ressemble à « le site ne
+marche pas ».
+
+**Vérifier la clé.** Une clé Groq commence par `gsk_`. Test rapide :
+`curl -s -o /dev/null -w "%{http_code}\n" https://api.groq.com/openai/v1/models -H "Authorization: Bearer gsk_..."`
+doit renvoyer `200` (un `401` = clé invalide).
 
 **Résistance à l'amont.** Cela ne nécessite **aucune modification du produit
 OWASP** (c'est LiteLLM qui fait le routage) et résiste aux MAJ amont, car PwnzzAI

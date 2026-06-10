@@ -122,7 +122,7 @@ The prefix before `/` in `LITELLM_MODEL` selects the actual provider.
 | Provider | `MODEL_PROVIDER` | `LITELLM_MODEL` (example) | Key var |
 |---|---|---|---|
 | Ollama (local, default) | `ollama` | — (uses `OLLAMA_MODEL`) | — |
-| Groq | `openai` | `groq/openai/gpt-oss-20b` | `GROQ_API_KEY` |
+| Groq (recommended) | `openai` | `groq/llama-3.3-70b-versatile` | `GROQ_API_KEY` |
 | OpenAI | `openai` | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
 | Google Gemini | `openai` | `gemini/gemini-2.0-flash` | `GEMINI_API_KEY` |
 | Anthropic | `openai` | `anthropic/claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
@@ -133,7 +133,7 @@ The prefix before `/` in `LITELLM_MODEL` selects the actual provider.
 2. In `.env`, set:
    ```ini
    MODEL_PROVIDER=openai
-   LITELLM_MODEL=groq/openai/gpt-oss-20b
+   LITELLM_MODEL=groq/llama-3.3-70b-versatile
    GROQ_API_KEY=gsk_xxx
    ```
 3. Restart the stack: `./pwnzzai.sh restart`.
@@ -149,11 +149,14 @@ change when unset).
 **Cost (Groq).** Roughly **1–3 EUR / morning / 10 students**. Enable
 pay-as-you-go and set a spend limit on the provider console.
 
-**Reasoning models caveat.** `gpt-oss-20b`/`gpt-oss-120b` are *reasoning* models:
-with a too-small `max_tokens` they spend the budget thinking and return an
-**empty** answer (`finish_reason=length`) — which looks like "the site is broken".
-`gpt-oss-20b` is enough and fast; if you want zero surprises use a non-reasoning
-model such as `groq/llama-3.3-70b-versatile`.
+**Reasoning models caveat.** Prefer `groq/llama-3.3-70b-versatile` (non-reasoning,
+reliable). Avoid `gpt-oss-20b`/`gpt-oss-120b`: they are *reasoning* models that
+spend the budget thinking and return an **empty** answer (tested: `HTTP 500` /
+`response:""` on some labs) — which looks like "the site is broken".
+
+**Check the key.** A Groq key starts with `gsk_`. Quick test:
+`curl -s -o /dev/null -w "%{http_code}\n" https://api.groq.com/openai/v1/models -H "Authorization: Bearer gsk_..."`
+must return `200` (a `401` = invalid key).
 
 **Upstream resilience.** This requires **no modification of the OWASP product**
 (LiteLLM is what does the routing) and survives upstream updates, because PwnzzAI
